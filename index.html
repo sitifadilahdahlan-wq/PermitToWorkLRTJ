@@ -1,0 +1,3689 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-PTW LRT Jakarta - Real-Time Dashboard & Document Center</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- HTML2PDF & html2canvas for PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body, button, input, select, textarea, table {
+      font-family: 'Century Schoolbook', 'Schola', 'TeX Gyre Schola', Georgia, 'Times New Roman', serif !important;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .custom-leaflet-icon-wrapper {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 24px !important;
+      height: 24px !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    @keyframes yellow-sonar {
+      0% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.8);
+      }
+      70% {
+        transform: scale(1.3) translateZ(0);
+        opacity: 0.4;
+        box-shadow: 0 0 0 16px rgba(234, 179, 8, 0);
+      }
+      100% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+      }
+    }
+    
+    .marker-active-radar {
+      width: 18px;
+      height: 18px;
+      background-color: #eab308;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      display: block;
+      will-change: transform, box-shadow, opacity;
+      transform: transform-gpu;
+      animation: yellow-sonar 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+      box-shadow: 0 2px 10px rgba(234,179,8,0.5);
+    }
+
+    .marker-standby-green {
+      width: 18px;
+      height: 18px;
+      background-color: #22c55e;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 3px 8px rgba(34,197,94,0.4);
+      display: block;
+    }
+
+    .marker-inactive-solid {
+      width: 14px;
+      height: 14px;
+      background-color: #64748b;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+      display: block;
+    }
+
+    @keyframes blue-sonar {
+      0% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8);
+      }
+      70% {
+        transform: scale(1.4) translateZ(0);
+        opacity: 0.3;
+        box-shadow: 0 0 0 16px rgba(59, 130, 246, 0);
+      }
+      100% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
+    .marker-user-satpam {
+      width: 22px;
+      height: 22px;
+      background-color: #3b82f6;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      display: block;
+      will-change: transform, box-shadow, opacity;
+      transform: transform-gpu;
+      animation: blue-sonar 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+      box-shadow: 0 3px 12px rgba(59, 130, 246, 0.6);
+    }
+
+    @keyframes indigo-sonar {
+      0% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.8);
+      }
+      70% {
+        transform: scale(1.4) translateZ(0);
+        opacity: 0.3;
+        box-shadow: 0 0 0 16px rgba(99, 102, 241, 0);
+      }
+      100% {
+        transform: scale(0.9) translateZ(0);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+      }
+    }
+    .marker-user-karyawan {
+      width: 22px;
+      height: 22px;
+      background-color: #6366f1;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      display: block;
+      will-change: transform, box-shadow, opacity;
+      transform: transform-gpu;
+      animation: indigo-sonar 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+      box-shadow: 0 3px 12px rgba(99, 102, 241, 0.6);
+    }
+
+    .alert-danger-glow {
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.85);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 10px;
+    }
+
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-serif antialiased selection:bg-red-200">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+  const { useState, useEffect, useRef, useMemo } = React;
+
+  // LOKASI JALUR UTAMA STASIUN LRT JAKARTA
+  const FALLBACK_STASIUN = [
+    { id: "Depo MCC", nama: "Depo MCC LRT Jakarta", lat: -6.156795339551294, lng: 106.91528786709415 },
+    { id: "Stasiun Pegangsaan Dua", nama: "Stasiun Pegangsaan Dua", lat: -6.157070676038542, lng: 106.91449309425593 },
+    { id: "Stasiun Boulevard Utara", nama: "Stasiun Boulevard Utara", lat: -6.159105955709021, lng: 106.90616182650807 },
+    { id: "Stasiun Boulevard Selatan", nama: "Stasiun Boulevard Selatan", lat: -6.168766492876034, lng: 106.90002738233045 },
+    { id: "Stasiun Pulomas", nama: "Stasiun Pulomas", lat: -6.1770879960090115, lng: 106.89335780931744 },
+    { id: "Stasiun Equestrian", nama: "Stasiun Equestrian", lat: -6.183487331912757, lng: 106.89130072465954 },
+    { id: "Stasiun Velodrome", nama: "Stasiun Velodrome", lat: -6.192283299084887, lng: 106.89117438312587 }
+  ];
+
+  const JALUR_SIMULASI_PATROLI = [
+    [-6.156795, 106.915287], // Depo MCC
+    [-6.157000, 106.914800],
+    [-6.157070, 106.914493], // Stasiun Pegangsaan Dua
+    [-6.157800, 106.911000],
+    [-6.158500, 106.908500],
+    [-6.159105, 106.906161], // Stasiun Boulevard Utara
+    [-6.162000, 106.904000],
+    [-6.165000, 106.902000],
+    [-6.168766, 106.900027], // Stasiun Boulevard Selatan
+    [-6.172000, 106.897000],
+    [-6.175000, 106.895000],
+    [-6.177087, 106.893357], // Stasiun Pulomas
+    [-6.180000, 106.892200],
+    [-6.183487, 106.891300], // Stasiun Equestrian
+    [-6.188000, 106.891200],
+    [-6.192283, 106.891174]  // Stasiun Velodrome
+  ];
+
+  const parseCoordinate = (val) => {
+    if (val === undefined || val === null || val === "") return NaN;
+    const cleanStr = String(val).replace(/,/g, '.').replace(/\s/g, '');
+    return parseFloat(cleanStr);
+  };
+
+  // Parse status permit terstruktur dari server
+  const parseServerPtwStatus = (statusStr) => {
+    const defaultState = { baseStatus: "Pending", verified: [], completed: [] };
+    if (!statusStr) return defaultState;
+
+    const parts = String(statusStr).split(" | ");
+    const baseStatus = parts[0] || "Pending";
+    let verified = [];
+    let completed = [];
+
+    parts.forEach(part => {
+      if (part.startsWith("Verified: ")) {
+        verified = part.replace("Verified: ", "").split(",").map(s => s.trim()).filter(Boolean);
+      } else if (part.startsWith("Completed: ")) {
+        completed = part.replace("Completed: ", "").split(",").map(s => s.trim()).filter(Boolean);
+      }
+    });
+
+    return { baseStatus, verified, completed };
+  };
+
+  const getDeterministicNo = (id, prefix = "PTW") => {
+    if (!id) return `${prefix}/LRTJ/101/${new Date().getFullYear()}`;
+    const num = String(id).replace(/\D/g, "");
+    const suffix = num ? num.slice(-3) : "101";
+    const year = new Date().getFullYear();
+    return `${prefix}/LRTJ/${suffix}/${year}`;
+  };
+
+  const formatDateOnly = (val) => {
+    if (!val) return "";
+    return String(val).split(/[ T]/)[0];
+  };
+
+  function App() {
+    const isGas = typeof google !== 'undefined' && google !== null && google.script && google.script.run;
+
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [role, setRole] = useState("satpam"); 
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loginEmail, setLoginEmail] = useState("");
+    const [loginPassword, setLoginPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    
+    const [muted, setMuted] = useState(false);
+    const [showNotifCenter, setShowNotifCenter] = useState(false);
+    const [realTimeClock, setRealTimeClock] = useState(new Date());
+
+    const [ptwDB, setPtwDB] = useState([]);
+    const [satpamList, setSatpamList] = useState([]);
+    const [karyawanList, setKaryawanList] = useState([]);
+    
+    const [listLokasiTugas, setListLokasiTugas] = useState(FALLBACK_STASIUN);
+    const [currentTab, setCurrentTab] = useState("dashboard"); 
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState("Semua"); 
+
+    const [userCoords, setUserCoords] = useState(null);
+    const [gpsAccuracy, setGpsAccuracy] = useState(null);
+    const [gpsSpeed, setGpsSpeed] = useState(null);
+    const [lockCamera, setLockCamera] = useState(true);
+
+    const [isSimulating, setIsSimulating] = useState(false);
+    const simulatedIndexRef = useRef(0);
+    const simulationIntervalRef = useRef(null);
+
+    const hasCenteredOnUserRef = useRef(false);
+    
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [notificationMsg, setNotificationMsg] = useState("");
+    const [actionQueue, setActionQueue] = useState([]);
+    const [showActionPopup, setShowActionPopup] = useState(false);
+    const [previewPdfPtw, setPreviewPdfPtw] = useState(null); 
+
+    const [selectedChartLocation, setSelectedChartLocation] = useState(null);
+
+    const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+    const [acknowledgedExpiredIds, setAcknowledgedExpiredIds] = useState(() => {
+      try {
+        const saved = localStorage.getItem("acknowledged_expired_ptws");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+        return [];
+      }
+    });
+
+    const [formPtwNo, setFormPtwNo] = useState("");
+    const [formJsaNo, setFormJsaNo] = useState("");
+    const [formVendor, setFormVendor] = useState("");
+    const [formPenanggungJawab, setFormPenanggungJawab] = useState("");
+    const [formShePelaksana, setFormShePelaksana] = useState("");
+    const [formPemberiKerja, setFormPemberiKerja] = useState("");
+    const [formPengawasPemberiKerja, setFormPengawasPemberiKerja] = useState("");
+    
+    const [formPekerjaan, setFormPekerjaan] = useState("");
+    const [formLokasi, setFormLokasi] = useState([]);
+    const [formTglMulai, setFormTglMulai] = useState("");
+    const [formJamMulai, setFormJamMulai] = useState("");
+    const [formTglSelesai, setFormTglSelesai] = useState("");
+    const [formJamSelesai, setFormJamSelesai] = useState("");
+    const [formPekerjaCount, setFormPekerjaCount] = useState(2);
+    const [formPersonelList, setFormPersonelList] = useState("");
+
+    const [formPotensiApi, setFormPotensiApi] = useState("Tidak"); 
+    const [formApdList, setFormApdList] = useState({
+      "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true, "Ear Muff": false,
+      "Ear Plug": false, "Hair Protection": false, "Face Protector": false, "Welding Mask": false,
+      "Apron": false, "Welding Clothes": false, "Protective Clothing": false, "Leather Gloves": false,
+      "Gas Mask": false, "Dust Mask": false, "Breathing Apparatus": false, "Nitrile Gloves": false,
+      "Cotton Gloves": false, "Full Body Harness": false, "Goggles": false, "Safety Glasses": false,
+      "Lain-lain": ""
+    });
+
+    const [formIsolasiBahanKimia, setFormIsolasiBahanKimia] = useState("Tidak");
+    const [formIsolasiMsds, setFormIsolasiMsds] = useState("Tidak");
+
+    const [formLotoProsedur, setFormLotoProsedur] = useState("Tidak");
+    const [formLotoListrik, setFormLotoListrik] = useState("Tidak");
+    const [formLotoMekanis, setFormLotoMekanis] = useState("Tidak");
+    const [formLotoHidrolik, setFormLotoHidrolik] = useState("Tidak");
+
+    const mapRef = useRef(null);
+    const markersLayerRef = useRef(null);
+    const userAccuracyCircleRef = useRef(null);
+    
+    const chartPekerjaRef = useRef(null);
+    const chartStatusRef = useRef(null);
+    const activeChartPekerjaInstance = useRef(null);
+    const activeChartStatusInstance = useRef(null);
+    
+    const gpsWatchIdRef = useRef(null);
+
+    const prevQueueLengthRef = useRef(0);
+    const prevExpiredLengthRef = useRef(0);
+
+    const playNotificationSound = (type) => {
+      if (muted) return;
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        if (type === 'new-task') {
+          const osc1 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(523.25, ctx.currentTime); 
+          osc1.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); 
+          
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          
+          osc1.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start();
+          osc1.stop(ctx.currentTime + 0.35);
+        } else if (type === 'danger') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.15);
+          osc.frequency.linearRampToValueAtTime(440, ctx.currentTime + 0.3);
+          
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } else if (type === 'success') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, index) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + (index * 0.08));
+            
+            gain.gain.setValueAtTime(0.08, ctx.currentTime + (index * 0.08));
+            gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + (index * 0.08) + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + (index * 0.08));
+            osc.stop(ctx.currentTime + (index * 0.08) + 0.2);
+          });
+        }
+      } catch (e) {
+        console.warn("Pemberitahuan suara tidak didukung:", e);
+      }
+    };
+
+    // Tracking GPS
+    useEffect(() => {
+      if (!isLoggedIn || !currentUser) {
+        setUserCoords(null);
+        setGpsAccuracy(null);
+        setGpsSpeed(null);
+        hasCenteredOnUserRef.current = false;
+        if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+          navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+          gpsWatchIdRef.current = null;
+        }
+        return;
+      }
+
+      if (isSimulating) return;
+
+      if (navigator.geolocation) {
+        showToast("Menghubungkan GPS Sektor...");
+        gpsWatchIdRef.current = navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            const speed = position.coords.speed;
+
+            setUserCoords({ lat, lng });
+            setGpsAccuracy(Math.round(accuracy));
+            setGpsSpeed(speed ? Math.round(speed * 3.6) : 0);
+
+            if (mapRef.current && lockCamera) {
+              mapRef.current.setView([lat, lng], 15);
+              hasCenteredOnUserRef.current = true;
+            }
+
+            if (isGas) {
+              const resolvedRoleName = role === "satpam" ? "Satpam" : "Karyawan";
+              google.script.run
+                .withSuccessHandler((res) => {
+                  if (res && !res.success) {
+                    console.warn("Sinkronisasi lokasi gagal:", res.error);
+                  }
+                })
+                .withFailureHandler((err) => console.error("Koneksi GPS gagal:", err))
+                .updateUserLocation(currentUser.Email, resolvedRoleName, lat, lng);
+            }
+          },
+          (error) => {
+            console.warn("Gagal membaca GPS Akurat:", error);
+            showToast("Akurasi rendah atau izin GPS ditolak. Gunakan tombol 'Simulasi'!");
+          },
+          { 
+            enableHighAccuracy: true,
+            timeout: 7000, 
+            maximumAge: 0 
+          }
+        );
+      } else {
+        showToast("Peramban tidak mendukung sensor GPS internal!");
+      }
+
+      return () => {
+        if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+          navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+          gpsWatchIdRef.current = null;
+        }
+      };
+    }, [isLoggedIn, currentUser, isSimulating, lockCamera]);
+
+    // Simulator Patroli
+    const toggleSimulation = () => {
+      if (isSimulating) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+        setIsSimulating(false);
+        setGpsSpeed(0);
+        setGpsAccuracy(null);
+        showToast("Simulasi berjalan dihentikan.");
+      } else {
+        if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+          navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+          gpsWatchIdRef.current = null;
+        }
+
+        setIsSimulating(true);
+        simulatedIndexRef.current = 0;
+        setGpsAccuracy(3);
+        setGpsSpeed(5);
+        showToast("Simulasi Patroli Jalur Rel Dimulai!");
+
+        const startNextStep = () => {
+          const coords = JALUR_SIMULASI_PATROLI[simulatedIndexRef.current];
+          if (!coords) return;
+          const lat = coords[0];
+          const lng = coords[1];
+
+          setUserCoords({ lat, lng });
+
+          if (mapRef.current && lockCamera) {
+            mapRef.current.setView([lat, lng], 15);
+          }
+
+          if (isGas && currentUser) {
+            const resolvedRoleName = role === "satpam" ? "Satpam" : "Karyawan";
+            google.script.run.updateUserLocation(currentUser.Email, resolvedRoleName, lat, lng);
+          }
+
+          simulatedIndexRef.current = (simulatedIndexRef.current + 1) % JALUR_SIMULASI_PATROLI.length;
+        };
+
+        startNextStep();
+        simulationIntervalRef.current = setInterval(startNextStep, 4000);
+      }
+    };
+
+    useEffect(() => {
+      return () => {
+        if (simulationIntervalRef.current) {
+          clearInterval(simulationIntervalRef.current);
+        }
+      };
+    }, []);
+
+    const getStationStatusForPtw = (ptw, stasiunId) => {
+      const normalizedStasiun = String(stasiunId).toLowerCase().trim();
+      const parsed = parseServerPtwStatus(ptw.status);
+      
+      if (parsed.baseStatus === "Expired") return "Expired";
+      if (parsed.baseStatus === "Pending") return "Pending";
+
+      const isCompleted = parsed.completed.some(loc => String(loc || "").toLowerCase().trim() === normalizedStasiun);
+      if (isCompleted) return "Expired"; 
+
+      const isVerified = parsed.verified.some(loc => String(loc || "").toLowerCase().trim() === normalizedStasiun);
+      if (isVerified) return "Work In Progress"; 
+
+      if (parsed.baseStatus === "Work In Progress" || parsed.baseStatus === "Awaiting Satpam Verification" || parsed.baseStatus === "Approved") {
+        return "Awaiting Satpam Verification"; 
+      }
+
+      return parsed.baseStatus; 
+    };
+
+    const getPtwStatusForUser = (ptw) => {
+      const now = new Date();
+      const cleanExpireDate = formatDateOnly(ptw.tanggalSelesai);
+      const expireDateStr = `${cleanExpireDate}T${ptw.jamSelesai || "23:59"}:00`;
+      const endDateTime = new Date(expireDateStr);
+      
+      const parsed = parseServerPtwStatus(ptw.status);
+      const baseStatus = parsed.baseStatus;
+
+      if (now > endDateTime || baseStatus === "Expired") {
+        return "Expired";
+      }
+
+      if (baseStatus === "Work In Progress" || baseStatus === "Awaiting Satpam Verification" || baseStatus === "Approved") {
+        return "Permit Aktif";
+      }
+
+      return baseStatus;
+    };
+
+    // Alur Kerja & Notifikasi Tindakan Segera
+    useEffect(() => {
+      if (!isLoggedIn || !currentUser) {
+        setActionQueue([]);
+        setShowActionPopup(false);
+        return;
+      }
+
+      let pendingList = [];
+      if (role === "satpam") {
+        const myLoc = (currentUser["Lokasi Tugas"] || "").toLowerCase().trim();
+        pendingList = ptwDB.filter(ptw => {
+          const parsed = parseServerPtwStatus(ptw.status);
+          const locationsList = ptw.lokasi || [];
+          const isTargetLoc = locationsList.some(loc => String(loc || "").toLowerCase().trim() === myLoc);
+          const isAlreadyVerified = parsed.verified.some(loc => String(loc || "").toLowerCase().trim() === myLoc);
+          const isAlreadyCompleted = parsed.completed.some(loc => String(loc || "").toLowerCase().trim() === myLoc);
+          
+          const needsVerify = (parsed.baseStatus === "Awaiting Satpam Verification" || parsed.baseStatus === "Work In Progress" || parsed.baseStatus === "Approved") 
+            && !isAlreadyVerified && !isAlreadyCompleted;
+          return isTargetLoc && needsVerify;
+        });
+      } else if (role === "karyawan") {
+        pendingList = ptwDB.filter(ptw => {
+          const parsed = parseServerPtwStatus(ptw.status);
+          return parsed.baseStatus === "Pending";
+        });
+      }
+
+      setActionQueue(pendingList);
+      setShowActionPopup(pendingList.length > 0);
+
+      if (pendingList.length > prevQueueLengthRef.current) {
+        playNotificationSound('new-task');
+      }
+      prevQueueLengthRef.current = pendingList.length;
+
+    }, [ptwDB, currentUser, role, isLoggedIn]);
+
+    const unacknowledgedExpiredPermits = useMemo(() => {
+      if (!isLoggedIn) return [];
+      return ptwDB.filter(ptw => {
+        const resolvedStatus = getPtwStatusForUser(ptw);
+        return resolvedStatus === "Expired" && !acknowledgedExpiredIds.includes(ptw.id);
+      });
+    }, [ptwDB, acknowledgedExpiredIds, isLoggedIn]);
+
+    useEffect(() => {
+      if (unacknowledgedExpiredPermits.length > prevExpiredLengthRef.current) {
+        playNotificationSound('danger');
+      }
+      prevExpiredLengthRef.current = unacknowledgedExpiredPermits.length;
+    }, [unacknowledgedExpiredPermits]);
+
+    // Timer Detak Jam Real-time & Cek Expired
+    useEffect(() => {
+      const timer = setInterval(() => {
+        const now = new Date();
+        setRealTimeClock(now);
+        
+        setPtwDB(prevDB => {
+          let changed = false;
+          const updated = prevDB.map(ptw => {
+            const parsed = parseServerPtwStatus(ptw.status);
+            if (parsed.baseStatus === "Work In Progress" || parsed.baseStatus === "Awaiting Satpam Verification" || parsed.baseStatus === "Approved") {
+              const cleanExpireDate = formatDateOnly(ptw.tanggalSelesai);
+              const expireDateStr = `${cleanExpireDate}T${ptw.jamSelesai || "23:59"}:00`;
+              const endDateTime = new Date(expireDateStr);
+              if (now > endDateTime) {
+                changed = true;
+                return { ...ptw, status: "Expired" };
+              }
+            }
+            return ptw;
+          });
+          return changed ? updated : prevDB;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }, []);
+
+    // Sinkronisasi Database Spreadsheet
+    const fetchDataFromSheet = () => {
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler((data) => {
+            if (data) {
+              if (data.satpam) setSatpamList(data.satpam);
+              if (data.karyawan) setKaryawanList(data.karyawan);
+
+              if (data.ptw) {
+                const parsedPTWs = data.ptw.filter(Boolean).map(p => {
+                  const ptwId = p["ID PTW"] || p["id"] || "PTW-UNKNOWN";
+                  
+                  let apdParsed = { "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true };
+                  if (p["Detail APD"] || p["Apd List"] || p["apdList"]) {
+                    try {
+                      const rawApd = p["Detail APD"] || p["Apd List"] || p["apdList"];
+                      apdParsed = typeof rawApd === 'string' ? JSON.parse(rawApd) : rawApd;
+                    } catch (e) {
+                      console.error("Gagal parse APD list:", e);
+                    }
+                  }
+
+                  return {
+                    id: ptwId,
+                    ptwNo: p["Permit To Work No"] || p["ptwNo"] || getDeterministicNo(ptwId, "PTW"),
+                    jsaNo: p["JSA No"] || p["jsaNo"] || getDeterministicNo(ptwId, "JSA"),
+                    vendor: p["Nama Perusahaan"] || p["vendor"] || "Kontraktor Tanpa Nama",
+                    penanggungJawab: p["Nama Pengawas"] || p["penanggungJawab"] || "Erwin Martoras",
+                    shePelaksana: p["SHE Pelaksana"] || p["shePelaksana"] || "Disma Krisntanto S.",
+                    pemberiKerja: p["Pemberi Kerja"] || p["pemberiKerja"] || "Muhammad fajar Mahendra",
+                    pengawasPemberiKerja: p["Pengawas Pemberi Kerja"] || p["pengawasPemberiKerja"] || "Deni Yusfiardi",
+                    personelList: p["Personel List"] || p["personelList"] || "Ginanjar, Jajang, Muarip, Agles, Gangsar",
+                    jenisPekerjaan: p["Jenis Pekerjaan"] || p["jenisPekerjaan"] || "Pekerjaan Umum",
+                    lokasi: String(p["Lokasi Bekerja"] || p["lokasi"] || "").split(",").map(x => x.trim()).filter(Boolean),
+                    tanggalMulai: formatDateOnly(p["Tanggal Pengajuan"] || p["tanggalMulai"] || ""),
+                    jamMulai: p["Jam Mulai Pekerjaan"] || p["jamMulai"] || "00:00",
+                    tanggalSelesai: formatDateOnly(p["Tanggal Expired"] || p["tanggalSelesai"] || ""),
+                    jamSelesai: p["Jam Selesai Pekerjaan"] || p["jamSelesai"] || "23:59",
+                    jumlahPekerja: parseInt(p["Jumlah Pekerja"] || p["jumlahPekerja"]) || 2,
+                    // Proteksi ganda agar tidak jatuh ke status "Pending" jika penamaan kolom bervariasi
+                    status: p["Masa Berlaku"] || p["Masa berlaku"] || p["Kolom_18"] || p["Status"] || p["status"] || "Pending",
+                    latGps: parseCoordinate(p["Lat Gps"] || p["latGps"]),
+                    lngGps: parseCoordinate(p["Lng Gps"] || p["lngGps"]),
+                    potensiApi: p["Potensi Api"] || "Tidak",
+                    apdList: apdParsed,
+                    isolasiBahanKimia: p["Isolasi Bahan Kimia"] || "Tidak",
+                    isolasiMsds: p["Isolasi MSDS"] || "Tidak",
+                    lotoProsedur: p["LOTO Prosedur"] || "Tidak",
+                    lotoListrik: p["LOTO Listrik"] || "Tidak",
+                    lotoMekanis: p["LOTO Mekanis"] || "Tidak",
+                    lotoHidrolik: p["LOTO Hidrolik"] || "Tidak"
+                  };
+                });
+                setPtwDB(parsedPTWs);
+              }
+
+              let updatedStations = [...FALLBACK_STASIUN];
+              if (data.satpam && data.satpam.length > 0) {
+                data.satpam.forEach(row => {
+                  if (!row) return;
+                  const stationId = row["Lokasi Tugas"] ? String(row["Lokasi Tugas"]).trim() : "";
+                  const latVal = parseCoordinate(row["Lat GPS"] || row["Lat Gps"] || row["Latitude"]);
+                  const lngVal = parseCoordinate(row["Lng Kordinat"] || row["Lng Koordinat"] || row["Longitude"]);
+
+                  if (stationId && !isNaN(latVal) && !isNaN(lngVal)) {
+                    const existingIdx = updatedStations.findIndex(st => 
+                      st.id.toLowerCase().trim() === stationId.toLowerCase().trim()
+                    );
+                    if (existingIdx === -1) {
+                      updatedStations.push({ id: stationId, nama: stationId, lat: latVal, lng: lngVal });
+                    }
+                  }
+                });
+              }
+              setListLokasiTugas(updatedStations);
+            }
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal menyinkronkan database: " + err.message);
+          })
+          .getDatabaseData();
+      } else {
+        // Mode Demo Offline / Fallback
+        const dummyHistory = [
+          {
+            id: "PTW-832912",
+            ptwNo: "832/PTW/LRTJ/D/2026-1",
+            jsaNo: "832/PTW/LRTJ/D/2026-1",
+            vendor: "PT Waskita - Nindya - LRS KSO",
+            penanggungJawab: "Erwin Martoras",
+            shePelaksana: "Disma Krisntanto S.",
+            pemberiKerja: "Muhammad fajar Mahendra",
+            pengawasPemberiKerja: "Deni Yusfiardi",
+            personelList: "Ginanjar, Jajang, Muarip, Agles, Gangsar",
+            jenisPekerjaan: "Modifikasi Walldisplay & Perawatan Wesel TPSS",
+            lokasi: ["Depo MCC", "Stasiun Pegangsaan Dua"],
+            tanggalMulai: "2026-07-10",
+            jamMulai: "23:00",
+            tanggalSelesai: "2026-07-15",
+            jamSelesai: "04:00",
+            jumlahPekerja: 29,
+            status: "Work In Progress | Verified: Depo MCC",
+            latGps: -6.156795,
+            lngGps: 106.915287,
+            potensiApi: "Ada",
+            apdList: { "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true, "Dust Mask": true, "Safety Glasses": true, "Welding Mask": true },
+            isolasiBahanKimia: "Tidak",
+            isolasiMsds: "Tidak",
+            lotoProsedur: "Tidak",
+            lotoListrik: "Tidak",
+            lotoMekanis: "Tidak",
+            lotoHidrolik: "Ya"
+          },
+          {
+            id: "PTW-541291",
+            ptwNo: "541/PTW/LRTJ/D/2026-2",
+            jsaNo: "541/PTW/LRTJ/D/2026-2",
+            vendor: "PT Siemens Indonesia",
+            penanggungJawab: "Budi Jatmiko",
+            shePelaksana: "Rudi Hartono",
+            pemberiKerja: "Hasan Sadikin",
+            pengawasPemberiKerja: "Deni Yusfiardi",
+            personelList: "Amir, Tio, Farhan",
+            jenisPekerjaan: "Kalibrasi Sinyal & Radio Telekomunikasi",
+            lokasi: ["Stasiun Boulevard Utara", "Stasiun Velodrome"],
+            tanggalMulai: "2026-07-12",
+            jamMulai: "08:00",
+            tanggalSelesai: "2026-07-14",
+            jamSelesai: "17:00",
+            jumlahPekerja: 5,
+            status: "Work In Progress | Verified: Stasiun Boulevard Utara",
+            latGps: -6.159105,
+            lngGps: 106.906161,
+            potensiApi: "Tidak",
+            apdList: { "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true },
+            isolasiBahanKimia: "Tidak",
+            isolasiMsds: "Tidak",
+            lotoProsedur: "Ya",
+            lotoListrik: "Ya",
+            lotoMekanis: "Tidak",
+            lotoHidrolik: "Tidak"
+          }
+        ];
+        setPtwDB(prev => prev.length > 0 ? prev : dummyHistory);
+        setSatpamList([
+          { Email: "satpam.pos1@company.com", Nama: "Bambang Hariyanto", "Lokasi Tugas": "Depo MCC", "Lat GPS": -6.1550, "Lng Kordinat": 106.9154 }
+        ]);
+        setKaryawanList([
+          { Email: "hse.karyawan@company.com", Nama: "Dewi Lestari, S.T.", "Lokasi Tugas": "Depo MCC - Ruang HSE", "Lat GPS": -6.1551, "Lng Kordinat": 106.9155 }
+        ]);
+      }
+    };
+
+    useEffect(() => {
+      if (isLoggedIn) {
+        fetchDataFromSheet();
+        const autoSync = setInterval(fetchDataFromSheet, 10000); 
+        return () => clearInterval(autoSync);
+      }
+    }, [isLoggedIn]);
+
+    // Filtrasi Pencarian
+    const filteredPTW = useMemo(() => {
+      return ptwDB.filter(ptw => {
+        const resolvedStatus = getPtwStatusForUser(ptw);
+        const textMatch = 
+          String(ptw.id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          String(ptw.vendor || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          String(ptw.jenisPekerjaan || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          String(ptw.ptwNo || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (statusFilter === "Semua") return textMatch;
+        if (statusFilter === "Aktif") {
+          return textMatch && (resolvedStatus === "Permit Aktif" || resolvedStatus === "Work In Progress" || resolvedStatus === "Awaiting Satpam Verification");
+        }
+        if (statusFilter === "Expired") {
+          return textMatch && resolvedStatus === "Expired";
+        }
+        return textMatch && resolvedStatus === statusFilter;
+      });
+    }, [ptwDB, searchQuery, statusFilter]);
+
+    const visiblePtwDB = useMemo(() => {
+      if (!currentUser) return filteredPTW;
+      if (role === "satpam") {
+        const userLocation = (currentUser["Lokasi Tugas"] || "").toLowerCase().trim();
+        return filteredPTW.filter(ptw => {
+          const locationsList = ptw.lokasi || [];
+          return locationsList.some(loc => String(loc || "").toLowerCase().trim() === userLocation);
+        });
+      }
+      return filteredPTW;
+    }, [filteredPTW, role, currentUser]);
+
+    const handleAcknowledgeExpired = () => {
+      const newlyExpiredIds = unacknowledgedExpiredPermits.map(p => p.id);
+      const merged = [...new Set([...acknowledgedExpiredIds, ...newlyExpiredIds])];
+      setAcknowledgedExpiredIds(merged);
+      try {
+        localStorage.setItem("acknowledged_expired_ptws", JSON.stringify(merged));
+      } catch (e) {
+        console.warn("Gagal menyimpan konfirmasi expired ke local storage", e);
+      }
+      showToast("Masa berlaku permit telah dikonfirmasi. Sektor wajib steril!");
+      playNotificationSound('success');
+    };
+
+    // Alur Login & Logout
+    const handleLogin = (e) => {
+      e.preventDefault();
+      setIsLoggingIn(true);
+      setLoginError("");
+
+      const cleanEmail = String(loginEmail || "").toLowerCase().trim();
+      const cleanPassword = String(loginPassword || "").trim();
+      const roleName = role === "satpam" ? "Satpam" : "Karyawan";
+
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler((user) => {
+            setIsLoggingIn(false);
+            if (user) {
+              setCurrentUser(user);
+              setIsLoggedIn(true);
+              showToast(`Selamat datang, ${user.Nama}!`);
+              playNotificationSound('success');
+            } else {
+              setLoginError("Kredensial salah atau pengguna tidak terdaftar.");
+            }
+          })
+          .withFailureHandler((err) => {
+            setIsLoggingIn(false);
+            setLoginError(err.message || "Gagal menghubungkan ke server.");
+          })
+          .doLogin(cleanEmail, cleanPassword, roleName);
+      } else {
+        setTimeout(() => {
+          setIsLoggingIn(false);
+          if (role === "satpam") {
+            if (cleanEmail === "satpam.pos1@company.com" && cleanPassword === "satpam123") {
+              const mockUser = {
+                Email: "satpam.pos1@company.com",
+                Nama: "Bambang Hariyanto",
+                "Lokasi Tugas": "Depo MCC",
+                "Lat GPS": "-6.15500254",
+                "Lng Kordinat": "106.91541503"
+              };
+              setCurrentUser(mockUser);
+              setIsLoggedIn(true);
+              showToast("Selamat datang, Bambang Hariyanto (Demo Offline)!");
+              playNotificationSound('success');
+            } else if (cleanEmail === "satpam.pos2@company.com" && cleanPassword === "satpam123") {
+              const mockUser = {
+                Email: "satpam.pos2@company.com",
+                Nama: "Slamet Prasetyo",
+                "Lokasi Tugas": "Stasiun Pegangsaan Dua",
+                "Lat GPS": "-6.15694188",
+                "Lng Kordinat": "106.91420061"
+              };
+              setCurrentUser(mockUser);
+              setIsLoggedIn(true);
+              showToast("Selamat datang, Slamet Prasetyo (Demo Offline)!");
+              playNotificationSound('success');
+            } else {
+              setLoginError("Kredensial salah! Gunakan 'satpam.pos1@company.com' & sandi 'satpam123'.");
+            }
+          } else {
+            if (cleanEmail === "hse.karyawan@company.com" && cleanPassword === "karyawan123") {
+              const mockUser = {
+                Email: "hse.karyawan@company.com",
+                Nama: "Dewi Lestari, S.T.",
+                "Lokasi Tugas": "Depo MCC - Ruang HSE",
+                "Lat GPS": "-6.15500254",
+                "Lng Kordinat": "106.91541503"
+              };
+              setCurrentUser(mockUser);
+              setIsLoggedIn(true);
+              showToast("Selamat datang, Dewi Lestari, S.T. (Demo Offline)!");
+              playNotificationSound('success');
+            } else {
+              setLoginError("Kredensial salah! Gunakan 'hse.karyawan@company.com' & sandi 'karyawan123'.");
+            }
+          }
+        }, 600);
+      }
+    };
+
+    const handleLogoutTrigger = () => {
+      if (gpsWatchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+        gpsWatchIdRef.current = null;
+      }
+
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+      }
+
+      if (!currentUser) {
+        handleLogout();
+        return;
+      }
+      
+      setIsLoggingOut(true);
+      showToast("Mematikan GPS & mencatat logout...");
+
+      if (isGas) {
+        const resolvedRoleName = role === "satpam" ? "Satpam" : "Karyawan";
+        google.script.run
+          .withSuccessHandler((res) => {
+            setIsLoggingOut(false);
+            showToast("Sinyal GPS Terputus Aman. Sampai jumpa!");
+            handleLogout();
+          })
+          .withFailureHandler((err) => {
+            setIsLoggingOut(false);
+            console.error("Gagal menonaktifkan koordinat GPS server:", err);
+            handleLogout();
+          })
+          .doLogout(currentUser.Email, resolvedRoleName);
+      } else {
+        setTimeout(() => {
+          setIsLoggingOut(false);
+          handleLogout();
+        }, 300);
+      }
+    };
+
+    const handleLogout = () => {
+      setIsLoggedIn(false);
+      setCurrentUser(null);
+      setLoginEmail("");
+      setLoginPassword("");
+      setShowActionPopup(false);
+      setShowNotifCenter(false);
+      setUserCoords(null);
+      setGpsAccuracy(null);
+      setGpsSpeed(null);
+      setIsSimulating(false);
+      hasCenteredOnUserRef.current = false;
+    };
+
+    const showToast = (msg) => {
+      setNotificationMsg(msg);
+      setTimeout(() => setNotificationMsg(""), 4000);
+    };
+
+    // Kirim Ajuan Permit Baru (Danru Satpam)
+    const handleCreatePTW = (e) => {
+      e.preventDefault();
+      if (!formLokasi || formLokasi.length === 0) {
+        showToast("Wajib memilih minimal satu stasiun lintasan!");
+        return;
+      }
+
+      const targetLocId = formLokasi[0] || "";
+      const matchedStation = targetLocId ? listLokasiTugas.find(st => 
+        st.id.toLowerCase().trim() === targetLocId.toLowerCase().trim()
+      ) : null;
+      
+      const latGps = matchedStation ? String(matchedStation.lat) : "-6.1567";
+      const lngGps = matchedStation ? String(matchedStation.lng) : "106.9152";
+
+      const ptwPayload = {
+        ptwNo: formPtwNo,
+        jsaNo: formJsaNo,
+        tanggalExpired: formatDateOnly(formTglSelesai),
+        jamMulai: formJamMulai,
+        jamSelesai: formJamSelesai,
+        namaPerusahaan: formVendor,
+        namaPengawas: formPenanggungJawab,
+        shePelaksana: formShePelaksana,
+        pemberiKerja: formPemberiKerja,
+        pengawasPemberiKerja: formPengawasPemberiKerja,
+        personelList: formPersonelList,
+        jumlahPekerja: formPekerjaCount,
+        kelengkapanSafety: "Sesuai Checklist APD Terlampir",
+        jenisPekerjaan: formPekerjaan,
+        lokasiBekerja: formLokasi.join(", "),
+        latGps: latGps,
+        lngGps: lngGps,
+        potensiApi: formPotensiApi,
+        apdList: JSON.stringify(formApdList),
+        isolasiBahanKimia: formIsolasiBahanKimia,
+        isolasiMsds: formIsolasiMsds,
+        lotoProsedur: formLotoProsedur,
+        lotoListrik: formLotoListrik,
+        lotoMekanis: formLotoMekanis,
+        lotoHidrolik: formLotoHidrolik,
+        operatorName: currentUser ? currentUser.Nama : "Satpam"
+      };
+
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler((result) => {
+            showToast(`Sukses! Dokumen ${result.idPtw} berhasil diajukan.`);
+            playNotificationSound('success');
+            fetchDataFromSheet();
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal mengajukan PTW: " + err.message);
+          })
+          .submitPTW(ptwPayload, "", "");
+      } else {
+        const newIdVal = "PTW-" + Math.floor(100000 + Math.random() * 900000);
+        const localNew = {
+          id: newIdVal,
+          ptwNo: formPtwNo || getDeterministicNo(newIdVal, "PTW"),
+          jsaNo: formJsaNo || getDeterministicNo(newIdVal, "JSA"),
+          vendor: formVendor,
+          penanggungJawab: formPenanggungJawab,
+          shePelaksana: formShePelaksana,
+          pemberiKerja: formPemberiKerja,
+          pengawasPemberiKerja: formPengawasPemberiKerja,
+          personelList: formPersonelList,
+          jenisPekerjaan: formPekerjaan,
+          lokasi: formLokasi,
+          tanggalMulai: formatDateOnly(formTglMulai),
+          jamMulai: formJamMulai,
+          tanggalSelesai: formatDateOnly(formTglSelesai),
+          jamSelesai: formJamSelesai,
+          jumlahPekerja: parseInt(formPekerjaCount) || 2,
+          status: "Pending",
+          latGps: parseFloat(latGps),
+          lngGps: parseFloat(lngGps),
+          potensiApi: formPotensiApi,
+          apdList: formApdList,
+          isolasiBahanKimia: formIsolasiBahanKimia,
+          isolasiMsds: formIsolasiMsds,
+          lotoProsedur: formLotoProsedur,
+          lotoListrik: formLotoListrik,
+          lotoMekanis: formLotoMekanis,
+          lotoHidrolik: formLotoHidrolik
+        };
+        setPtwDB(prev => [localNew, ...prev]);
+        showToast(`[Demo] Berhasil mengajukan ${localNew.id}`);
+        playNotificationSound('success');
+      }
+
+      setIsCreateModalOpen(false);
+    };
+
+    // Sahkan Dokumen (HSE Specialist)
+    const handleHseApprove = (id) => {
+      // Optimistic update: langsung bersihkan popup secara lokal
+      setPtwDB(prev => prev.map(p => p.id === id ? { ...p, status: "Awaiting Satpam Verification" } : p));
+      
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler(() => {
+            showToast(`Dokumen ${id} disahkan! Menunggu verifikasi fisik di stasiun.`);
+            playNotificationSound('success');
+            fetchDataFromSheet();
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal mengesahkan: " + err.message);
+            fetchDataFromSheet();
+          })
+          .approvePTW(id, currentUser ? currentUser.Nama : "Karyawan HSE", true, "");
+      } else {
+        showToast(`[Demo] Dokumen ${id} disetujui HSE.`);
+        playNotificationSound('success');
+      }
+    };
+
+    // Tolak Dokumen (HSE Specialist)
+    const handleHseReject = (id) => {
+      setPtwDB(prev => prev.map(p => p.id === id ? { ...p, status: "Expired" } : p));
+      
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler(() => {
+            showToast(`Dokumen ${id} ditolak.`);
+            playNotificationSound('danger');
+            fetchDataFromSheet();
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal menolak: " + err.message);
+            fetchDataFromSheet();
+          })
+          .approvePTW(id, currentUser ? currentUser.Nama : "Karyawan HSE", false, "K3 Tidak Sesuai");
+      } else {
+        showToast(`[Demo] Dokumen ${id} ditolak.`);
+        playNotificationSound('danger');
+      }
+    };
+
+    // Verifikasi Kehadiran Fisik (Danru Satpam Sektor)
+    const handleSatpamVerify = (id) => {
+      const userLocation = currentUser?.["Lokasi Tugas"];
+      if (!userLocation) return;
+
+      setPtwDB(prevDB => prevDB.map(p => {
+        if (p.id === id) {
+          const parsed = parseServerPtwStatus(p.status);
+          const verified = [...new Set([...parsed.verified, userLocation])];
+          let nextStatus = "Work In Progress";
+          if (verified.length > 0) nextStatus += " | Verified: " + verified.join(", ");
+          if (parsed.completed.length > 0) nextStatus += " | Completed: " + parsed.completed.join(", ");
+          return { ...p, status: nextStatus };
+        }
+        return p;
+      }));
+
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            showToast(`Terverifikasi! Sektor ${userLocation} diizinkan bekerja.`);
+            playNotificationSound('success');
+            fetchDataFromSheet();
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal memverifikasi sektor: " + err.message);
+            fetchDataFromSheet();
+          })
+          .verifyPTWSector(id, userLocation, currentUser ? currentUser.Nama : "Satpam");
+      } else {
+        showToast(`[Demo] Sektor ${userLocation} diverifikasi.`);
+        playNotificationSound('success');
+      }
+    };
+
+    // Akhiri / Selesaikan Sektor Pekerjaan (Selesai Kerja)
+    const handleForceComplete = (id, targetStation) => {
+      const sectorToClose = targetStation || currentUser?.["Lokasi Tugas"];
+      if (!sectorToClose) return;
+
+      setPtwDB(prevDB => prevDB.map(p => {
+        if (p.id === id) {
+          const parsed = parseServerPtwStatus(p.status);
+          const completed = [...new Set([...parsed.completed, sectorToClose])];
+          const locationsList = p.lokasi || [];
+          
+          const allDone = locationsList.every(loc => 
+            completed.some(comp => String(comp || "").toLowerCase().trim() === String(loc || "").toLowerCase().trim())
+          );
+
+          let nextStatus = allDone ? "Expired" : "Work In Progress";
+          if (parsed.verified.length > 0) nextStatus += " | Verified: " + parsed.verified.join(", ");
+          if (completed.length > 0) nextStatus += " | Completed: " + completed.join(", ");
+          return { ...p, status: nextStatus };
+        }
+        return p;
+      }));
+
+      if (isGas) {
+        google.script.run
+          .withSuccessHandler(() => {
+            showToast(`Pekerjaan di sektor ${sectorToClose} selesai.`);
+            playNotificationSound('success');
+            fetchDataFromSheet();
+          })
+          .withFailureHandler((err) => {
+            showToast("Gagal mengakhiri sektor: " + err.message);
+            fetchDataFromSheet();
+          })
+          .completePTWSector(id, sectorToClose, currentUser ? currentUser.Nama : "Petugas");
+      } else {
+        showToast(`[Demo] Sektor ${sectorToClose} selesai dikerjakan.`);
+        playNotificationSound('success');
+      }
+    };
+
+    const handleStationCheckbox = (id) => {
+      if (formLokasi.includes(id)) {
+        setFormLokasi(formLokasi.filter(item => item !== id));
+      } else {
+        setFormLokasi([...formLokasi, id]);
+      }
+    };
+
+    // Buka Modal Pembuatan Form Baru dengan Data Default Lengkap
+    const openCreateModal = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+
+      const currentDateString = `${year}-${month}-${day}`;
+      const currentTimeString = `${hours}:${minutes}`;
+
+      setFormPtwNo(`832/PTW/LRTJ/D/${year}-1`);
+      setFormJsaNo(`832/PTW/LRTJ/D/${year}-1`);
+      setFormTglMulai(currentDateString);
+      setFormJamMulai(currentTimeString);
+      setFormTglSelesai(currentDateString);
+      const endHours = String((now.getHours() + 3) % 24).padStart(2, '0');
+      setFormJamSelesai(`${endHours}:${minutes}`);
+
+      setFormVendor("PT. Kharisna Abadi Utama");
+      setFormPenanggungJawab("Erwin Martoras");
+      setFormShePelaksana("Andryan Silitonga");
+      setFormPemberiKerja("Luthfi Prasetya Kurniawan");
+      setFormPengawasPemberiKerja("Imam Santoso");
+      setFormPersonelList("Juniharto, Ardika Haris Handoko, Andryan Silitonga, Gunawan Ari, Bagus Prasetyo");
+      setFormPekerjaan("Pemeriksaan, Perawatan, Perbaikan & Modifikasi Sipil Struktur & Arsitektural Seluruh Area Depo & Stasiun LRT Jakarta");
+      setFormLokasi([]);
+      setFormPekerjaCount(22);
+      setFormPotensiApi("Ada");
+      setFormApdList({
+        "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true, "Ear Muff": false,
+        "Ear Plug": false, "Hair Protection": false, "Face Protector": true, "Welding Mask": false,
+        "Apron": true, "Welding Clothes": false, "Protective Clothing": false, "Leather Gloves": false,
+        "Gas Mask": false, "Dust Mask": false, "Breathing Apparatus": false, "Nitrile Gloves": false,
+        "Cotton Gloves": false, "Full Body Harness": false, "Goggles": false, "Safety Glasses": false,
+        "Lain-lain": ""
+      });
+      setFormIsolasiBahanKimia("Ya");
+      setFormIsolasiMsds("Ya");
+      setFormLotoProsedur("Tidak");
+      setFormLotoListrik("Tidak");
+      setFormLotoMekanis("Tidak");
+      setFormLotoHidrolik("Tidak");
+
+      setIsCreateModalOpen(true);
+    };
+
+    const handleDownloadPdf = (ptw) => {
+      const element = document.getElementById(`pdf-render-target`);
+      if (!element) return;
+      
+      const opt = {
+        margin:       [10, 10, 10, 10],
+        filename:      `E-PTW_LRTJ_${ptw.id}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      html2pdf().from(element).set(opt).save().then(() => {
+        showToast("PDF Berhasil Diunduh!");
+        playNotificationSound('success');
+      });
+    };
+
+    // Inisialisasi Peta
+    useEffect(() => {
+      if (!isLoggedIn || currentTab !== "dashboard") {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+          markersLayerRef.current = null;
+          userAccuracyCircleRef.current = null;
+        }
+        return;
+      }
+
+      const container = document.getElementById("map-viewport");
+      if (!container) return;
+
+      if (!mapRef.current) {
+        const map = L.map(container, {
+          center: [-6.173, 106.899], 
+          zoom: 13,
+          zoomControl: true,
+          fadeAnimation: false, 
+          zoomAnimation: true,
+          markerZoomAnimation: true
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19,
+          attribution: '&copy; CartoDB'
+        }).addTo(map);
+
+        let popupCloseTimeout = null;
+
+        map.on('popupclose', () => {
+          popupCloseTimeout = setTimeout(() => {
+            if (!lockCamera) {
+              map.setView([-6.173, 106.899], 13);
+            }
+          }, 50); 
+        });
+
+        map.on('popupopen', () => {
+          if (popupCloseTimeout) {
+            clearTimeout(popupCloseTimeout);
+            popupCloseTimeout = null;
+          }
+        });
+
+        mapRef.current = map;
+
+        const markersLayer = L.layerGroup().addTo(map);
+        markersLayerRef.current = markersLayer;
+      }
+
+    }, [isLoggedIn, currentTab, lockCamera]);
+
+    useEffect(() => {
+      if (mapRef.current) {
+        setTimeout(() => {
+          mapRef.current.invalidateSize({ animate: false });
+        }, 50);
+      }
+    }, [isMapFullscreen]);
+
+    // Rerender Markers & Akurasi GPS
+    useEffect(() => {
+      if (!mapRef.current || !markersLayerRef.current || currentTab !== "dashboard") return;
+
+      const mapInstance = mapRef.current;
+      const markersLayer = markersLayerRef.current;
+      markersLayer.clearLayers(); 
+
+      listLokasiTugas.forEach(stasiun => {
+        const lat = parseFloat(stasiun.lat);
+        const lng = parseFloat(stasiun.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        const stasiunPTWs = ptwDB.filter(ptw => {
+          const locationsList = ptw.lokasi || [];
+          return locationsList.some(loc => String(loc || "").toLowerCase().trim() === stasiun.id.toLowerCase().trim());
+        });
+        
+        let markerHtml = `<div class="marker-inactive-solid text-center"></div>`;
+        let labelStatus = "Tidak ada aktivitas kerja";
+        
+        const hasWip = stasiunPTWs.some(ptw => getStationStatusForPtw(ptw, stasiun.id) === "Work In Progress");
+        const hasAwaiting = stasiunPTWs.some(ptw => getStationStatusForPtw(ptw, stasiun.id) === "Awaiting Satpam Verification");
+
+        if (hasWip) {
+          markerHtml = `<div class="marker-active-radar"></div>`;
+          labelStatus = `<span class="text-yellow-650 font-extrabold">● Aktif Bekerja (Radar Kuning)</span>`;
+        } else if (hasAwaiting) {
+          markerHtml = `<div class="marker-standby-green"></div>`;
+          labelStatus = `<span class="text-emerald-600 font-extrabold">▲ Standby: Verifikasi Fisik (Hijau)</span>`;
+        }
+
+        const customIcon = L.divIcon({
+          html: markerHtml,
+          className: 'custom-leaflet-icon-wrapper',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+
+        const popupContent = `
+          <div class="p-2 font-serif text-slate-800" style="min-width: 190px;">
+            <h4 class="font-bold text-xs border-b pb-1 mb-1 text-slate-900">${stasiun.nama}</h4>
+            <div class="text-[11px] space-y-1">
+              <p>Sektor Status: ${labelStatus}</p>
+              ${stasiunPTWs.length > 0 ? `<p class="font-semibold text-slate-500 mt-2 border-t pt-1">Pelaksana Konstruksi:</p>` : ''}
+              <ul class="list-disc pl-3 text-slate-700">
+                ${stasiunPTWs.map(v => `<li class="font-medium text-[10px]">${v.vendor || "N/A"} <span class="text-[9px] px-1 bg-slate-100 rounded">( ${v.id} )</span></li>`).join("")}
+              </ul>
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([lat, lng], { icon: customIcon })
+          .bindPopup(popupContent);
+
+        marker.on('click', (e) => {
+          mapInstance.setView(e.latlng, 16);
+        });
+
+        markersLayer.addLayer(marker);
+      });
+
+      satpamList.forEach(satpam => {
+        const lat = parseCoordinate(satpam["Lat GPS"]);
+        const lng = parseCoordinate(satpam["Lng Kordinat"] || satpam["Lng GPS"]);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        if (currentUser && satpam.Email.toLowerCase().trim() === currentUser.Email.toLowerCase().trim()) return;
+
+        const satpamIcon = L.divIcon({
+          html: `<div class="marker-user-satpam opacity-85"></div>`,
+          className: 'custom-leaflet-icon-wrapper',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
+        const satpamPopup = `
+          <div class="p-2 font-serif text-slate-800">
+            <h4 class="font-bold text-xs text-blue-600 flex items-center gap-1">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Danru Satpam Online</span>
+            </h4>
+            <p class="font-semibold text-[11px] text-slate-900 mt-1">${satpam.Nama || "Satpam"}</p>
+            <p class="text-[10px] text-slate-500">Pos: ${satpam["Lokasi Tugas"] || "-"}</p>
+          </div>
+        `;
+
+        const satpamMarker = L.marker([lat, lng], { icon: satpamIcon })
+          .bindPopup(satpamPopup);
+
+        satpamMarker.on('click', (e) => {
+          mapInstance.setView(e.latlng, 16);
+        });
+
+        markersLayer.addLayer(satpamMarker);
+      });
+
+      karyawanList.forEach(hse => {
+        const lat = parseCoordinate(hse["Lat GPS"]);
+        const lng = parseCoordinate(hse["Lng Kordinat"] || hse["Lng GPS"]);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        if (currentUser && hse.Email.toLowerCase().trim() === currentUser.Email.toLowerCase().trim()) return;
+
+        const hseIcon = L.divIcon({
+          html: `<div class="marker-user-karyawan opacity-85"></div>`,
+          className: 'custom-leaflet-icon-wrapper',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+
+        const hsePopup = `
+          <div class="p-2 font-serif text-slate-800">
+            <h4 class="font-bold text-xs text-indigo-600 flex items-center gap-1">
+              <i class="fa-solid fa-user-shield"></i>
+              <span>HSE Officer Online</span>
+            </h4>
+            <p class="font-semibold text-[11px] text-slate-900 mt-1">${hse.Nama || "HSE Staff"}</p>
+            <p class="text-[10px] text-slate-500">Kantor: ${hse["Lokasi Tugas"] || "-"}</p>
+          </div>
+        `;
+
+        const hseMarker = L.marker([lat, lng], { icon: hseIcon })
+          .bindPopup(hsePopup);
+
+        hseMarker.on('click', (e) => {
+          mapInstance.setView(e.latlng, 16);
+        });
+
+        markersLayer.addLayer(hseMarker);
+      });
+
+      if (userAccuracyCircleRef.current) {
+        mapInstance.removeLayer(userAccuracyCircleRef.current);
+        userAccuracyCircleRef.current = null;
+      }
+
+      if (userCoords && !isNaN(userCoords.lat) && !isNaN(userCoords.lng)) {
+        const userIconClass = role === "satpam" ? "marker-user-satpam" : "marker-user-karyawan";
+        const userIcon = L.divIcon({
+          html: `<div class="${userIconClass}"></div>`,
+          className: 'custom-leaflet-icon-wrapper',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        });
+
+        if (gpsAccuracy && gpsAccuracy < 100) {
+          userAccuracyCircleRef.current = L.circle([userCoords.lat, userCoords.lng], {
+            radius: gpsAccuracy,
+            color: '#3b82f6',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.15,
+            weight: 1.5,
+            dashArray: '4, 4'
+          }).addTo(mapInstance);
+        }
+
+        const userPopupContent = `
+          <div class="p-2 font-serif text-slate-800">
+            <h4 class="font-bold text-xs border-b pb-1 mb-1 text-slate-900 flex items-center gap-1">
+              <i class="fa-solid fa-person-walking text-blue-500 animate-pulse"></i>
+              <span>Posisi GPS Aktif ${isSimulating ? "(Simulasi)" : ""}</span>
+            </h4>
+            <div class="text-[11px] space-y-0.5">
+              <p class="font-bold text-slate-950">{currentUser?.Nama || "User"}</p>
+              <p class="text-[9px] text-slate-400 font-mono">Lat: ${userCoords.lat.toFixed(6)}</p>
+              <p class="text-[9px] text-slate-400 font-mono">Lng: ${userCoords.lng.toFixed(6)}</p>
+              <p class="text-[9px] text-blue-600 font-bold">Presisi: ±${gpsAccuracy || 5} meter</p>
+            </div>
+          </div>
+        `;
+
+        const userMarker = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon, zIndexOffset: 2000 })
+          .bindPopup(userPopupContent);
+
+        userMarker.on('click', (e) => {
+          mapInstance.setView(e.latlng, 16);
+        });
+
+        markersLayer.addLayer(userMarker);
+      }
+
+    }, [ptwDB, satpamList, karyawanList, listLokasiTugas, userCoords, gpsAccuracy, isSimulating, currentTab]);
+
+    // Rerender Chart.js Dashboard
+    useEffect(() => {
+      if (!isLoggedIn || currentTab !== "dashboard") return;
+
+      const labelLokasi = listLokasiTugas.map(st => st.id);
+      const dataPekerjaPerLokasi = listLokasiTugas.map(st => {
+        let count = 0;
+        visiblePtwDB.forEach(ptw => {
+          const locationsList = ptw.lokasi || [];
+          const matched = locationsList.some(loc => String(loc || "").toLowerCase().trim() === st.id.toLowerCase().trim());
+          const statusResolved = getPtwStatusForUser(ptw);
+          if (matched && statusResolved !== "Expired") {
+            count += parseInt(ptw.jumlahPekerja || 0);
+          }
+        });
+        return count;
+      });
+
+      const warnaBalokList = [
+        'rgba(239, 68, 68, 0.85)',
+        'rgba(249, 115, 22, 0.85)',
+        'rgba(234, 179, 8, 0.85)',
+        'rgba(34, 197, 94, 0.85)',
+        'rgba(6, 182, 212, 0.85)',
+        'rgba(59, 130, 246, 0.85)',
+        'rgba(168, 85, 247, 0.85)'
+      ];
+
+      const warnaBorderList = [
+        'rgb(220, 38, 38)',
+        'rgb(234, 88, 12)',
+        'rgb(202, 138, 4)',
+        'rgb(22, 163, 74)',
+        'rgb(8, 145, 178)',
+        'rgb(37, 99, 235)',
+        'rgb(147, 51, 234)'
+      ];
+
+      if (chartPekerjaRef.current) {
+        if (activeChartPekerjaInstance.current) {
+          activeChartPekerjaInstance.current.destroy();
+        }
+        
+        const ctx1 = chartPekerjaRef.current.getContext('2d');
+        activeChartPekerjaInstance.current = new Chart(ctx1, {
+          type: 'bar',
+          data: {
+            labels: labelLokasi,
+            datasets: [{
+              label: 'Jumlah Pekerja Aktif',
+              data: dataPekerjaPerLokasi,
+              backgroundColor: warnaBalokList.slice(0, labelLokasi.length),
+              borderColor: warnaBorderList.slice(0, labelLokasi.length),
+              borderWidth: 1.5,
+              borderRadius: 6,
+              barPercentage: 0.55
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  afterBody: () => '\n💡 Klik balok untuk detail nama vendor & rincian tugas.'
+                }
+              }
+            },
+            onHover: (event, chartElement) => {
+              event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+              if (elements.length > 0) {
+                const elementIndex = elements[0].index;
+                const clickedLocation = labelLokasi[elementIndex];
+                setSelectedChartLocation(clickedLocation);
+              }
+            },
+            scales: {
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#475569', precision: 0 } },
+              x: { grid: { display: false }, ticks: { color: '#475569' } }
+            }
+          }
+        });
+      }
+
+      const labelDates7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        labelDates7Days.push(`${yyyy}-${mm}-${dd}`);
+      }
+
+      const dataTrenPtwHarian = labelDates7Days.map(tgl => {
+        return visiblePtwDB.filter(ptw => formatDateOnly(ptw.tanggalMulai) === tgl).length;
+      });
+
+      if (chartStatusRef.current) {
+        if (activeChartStatusInstance.current) {
+          activeChartStatusInstance.current.destroy();
+        }
+
+        const ctx2 = chartStatusRef.current.getContext('2d');
+        activeChartStatusInstance.current = new Chart(ctx2, {
+          type: 'line',
+          data: {
+            labels: labelDates7Days.map(tgl => tgl.split('-').reverse().slice(0, 2).join('/')),
+            datasets: [{
+              label: 'Fluktuasi PTW Sektor',
+              data: dataTrenPtwHarian,
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderColor: 'rgb(220, 38, 38)',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: true,
+              pointBackgroundColor: 'rgb(220, 38, 38)',
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0, color: '#475569' }, grid: { color: 'rgba(0,0,0,0.05)' } },
+              x: { ticks: { color: '#475569' }, grid: { display: false } }
+            }
+          }
+        });
+      }
+
+    }, [isLoggedIn, visiblePtwDB, currentTab, listLokasiTugas]);
+
+    const wipCountResolved = visiblePtwDB.filter(p => getPtwStatusForUser(p) === "Permit Aktif").length;
+    const pendingTotalCount = visiblePtwDB.filter(p => {
+      const parsed = parseServerPtwStatus(p.status);
+      return parsed.baseStatus === "Pending" || parsed.baseStatus === "Awaiting Satpam Verification";
+    }).length;
+
+    const formatIndonesianClock = (dateObj) => {
+      const weekdays = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      
+      const dayName = weekdays[dateObj.getDay()];
+      const day = dateObj.getDate();
+      const monthName = months[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      const hh = String(dateObj.getHours()).padStart(2, '0');
+      const mm = String(dateObj.getMinutes()).padStart(2, '0');
+      const ss = String(dateObj.getSeconds()).padStart(2, '0');
+
+      return `${dayName}, ${day} ${monthName} ${year} — ${hh}:${mm}:${ss} WIB`;
+    };
+
+    const selectedLocationPTWs = useMemo(() => {
+      if (!selectedChartLocation) return [];
+      return ptwDB.filter(ptw => {
+        const locationsList = ptw.lokasi || [];
+        return locationsList.some(loc => String(loc || "").toLowerCase().trim() === selectedChartLocation.toLowerCase().trim());
+      });
+    }, [selectedChartLocation, ptwDB]);
+
+    // Halaman Login / Portal Kredensial
+    if (!isLoggedIn) {
+      return (
+        <div 
+          className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center relative"
+          style={{ 
+            backgroundImage: `url('https://cdn-assets.jawapos.com/images/1/2025/09/18/LRT-Jakarta-Dery-Ridwansah-2JPG-2401916913.jpg')`
+          }}
+        >
+          <div className="absolute inset-0 bg-white/25 backdrop-blur-[4px] z-0"></div>
+
+          <div className="relative z-10 bg-white/80 p-8 rounded-2xl w-full max-w-md border border-white/80 shadow-2xl text-slate-900 backdrop-blur-lg">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-red-600/20">
+                <i className="fa-solid fa-train-subway text-2xl text-white"></i>
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">E-PERMIT TO WORK</h2>
+              <p className="text-slate-600 text-xs mt-1">Sistem Pengawasan Keamanan Konstruksi Jalur Rel</p>
+              <div className="mt-2 bg-white/60 px-3 py-1 rounded-full text-[10px] font-mono inline-block border border-slate-200 text-slate-800">
+                {formatIndonesianClock(realTimeClock)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 p-1 bg-white/40 border border-slate-200/50 rounded-xl mb-6">
+              <button
+                type="button"
+                onClick={() => { setRole("satpam"); setLoginError(""); }}
+                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                  role === "satpam" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <i className="fa-solid fa-shield-halved"></i>
+                <span>Danru Sektor</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRole("karyawan"); setLoginError(""); }}
+                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                  role === "karyawan" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <i className="fa-solid fa-user-shield"></i>
+                <span>Karyawan HSE</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i className="fa-solid fa-envelope text-xs"></i>
+                  </span>
+                  <input 
+                    type="email" 
+                    required
+                    placeholder={role === "satpam" ? "satpam.pos1@company.com" : "hse.karyawan@company.com"} 
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm font-semibold"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Password</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i className="fa-solid fa-lock text-xs"></i>
+                  </span>
+                  <input 
+                    type="password" 
+                    required
+                    placeholder="Masukkan sandi akun" 
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-red-600 text-xs font-semibold flex items-start space-x-2">
+                  <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={isLoggingIn}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black rounded-xl transition duration-200 text-sm tracking-wider shadow-lg shadow-red-600/30 text-white flex items-center justify-center space-x-2"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <i className="fa-solid fa-circle-notch animate-spin"></i>
+                    <span>MENYINKRONKAN...</span>
+                  </>
+                ) : (
+                  <span>MASUK KE SISTEM</span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // Portal Dashboard Utama
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-serif relative">
+        
+        {isLoggingOut && (
+          <div className="fixed inset-0 z-[11000] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-white space-y-4">
+            <i className="fa-solid fa-spinner animate-spin text-4xl text-red-500"></i>
+            <p className="text-sm font-bold tracking-widest uppercase">Memproses Keluar &amp; Mencatat Histori Logout...</p>
+          </div>
+        )}
+
+        {notificationMsg && (
+          <div className="fixed top-20 right-4 z-[9999] bg-white text-slate-900 px-5 py-3.5 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-200 text-xs animate-bounce">
+            <span className="flex h-2.5 w-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+            <span className="font-bold">{notificationMsg}</span>
+          </div>
+        )}
+
+        {/* NOTIFIKASI POPUP FULLSCREEN UNTUK PERMIT EXPIRED */}
+        {unacknowledgedExpiredPermits.length > 0 && (
+          <div className="fixed inset-0 z-[10000] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="w-full max-w-2xl bg-slate-900 border-2 border-red-500 rounded-3xl overflow-hidden shadow-2xl text-white alert-danger-glow">
+              <div className="p-6 bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <i className="fa-solid fa-triangle-exclamation text-5xl mb-3 text-yellow-300"></i>
+                <h3 className="text-lg font-black tracking-wider uppercase">SAFETY ALERT WARNING (K3)</h3>
+                <p className="text-xs text-red-100 font-bold uppercase mt-1">MASA BERLAKU PERMIT TO WORK TELAH EXPIRED</p>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto bg-slate-900/95">
+                <p className="text-xs text-slate-300 leading-relaxed text-center">
+                  Sistem mendeteksi aktivitas pekerjaan berikut telah melewati batas waktu aman kerja operasional yang diizinkan oleh Departemen QSSHE LRT Jakarta. Seluruh aktivitas fisik di lokasi wajib dihentikan sekarang juga!
+                </p>
+
+                <div className="space-y-3">
+                  {unacknowledgedExpiredPermits.map(ptw => {
+                    const locationsList = ptw.lokasi || [];
+                    return (
+                      <div key={ptw.id} className="p-4 bg-slate-950/70 border border-red-500/30 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                          <span className="font-mono text-xs font-bold text-red-400">{ptw.id}</span>
+                          <span className="text-[9px] px-2 py-0.5 bg-red-600/20 text-red-400 border border-red-500/30 rounded font-black uppercase">EXPIRED</span>
+                        </div>
+                        <div className="text-[11px] space-y-1 text-slate-300">
+                          <p><strong>Perusahaan Pelaksana:</strong> <span className="text-white font-bold">{ptw.vendor || "N/A"}</span></p>
+                          <p><strong>Jenis Pekerjaan:</strong> {ptw.jenisPekerjaan || "-"}</p>
+                          <p><strong>Sektor Lokasi Kerja:</strong> <span className="text-red-400 font-bold">{locationsList.join(", ")}</span></p>
+                          <p><strong>Batas Waktu Terakhir:</strong> <span className="font-mono">{formatDateOnly(ptw.tanggalSelesai)} @ {ptw.jamSelesai || "23:59"} WIB</span></p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-[10px] flex items-start space-x-2">
+                  <i className="fa-solid fa-shield-halved mt-0.5 shrink-0 text-sm"></i>
+                  <p className="leading-normal">
+                    <strong>PENTING UNTUK PETUGAS &amp; DANRU:</strong> Pastikan seluruh tenaga kerja lapangan telah keluar dari area rel, lakukan sterilisasi peralatan teknik, kembalikan kunci gembok LOTO, dan segera laporkan status aman sektor ke ruang HSE.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-slate-800 bg-slate-950 flex flex-col space-y-2">
+                <button 
+                  onClick={handleAcknowledgeExpired}
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-black tracking-widest uppercase rounded-xl transition duration-200 shadow-lg shadow-red-600/20 flex items-center justify-center space-x-2 border border-red-500"
+                >
+                  <i className="fa-solid fa-clipboard-check text-sm"></i>
+                  <span>Saya Mengerti &amp; Sektor Telah Dikosongkan</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* POPUP TINDAKAN INSTAN / APPROVAL */}
+        {showActionPopup && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md">
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border bg-white border-slate-200 text-slate-800">
+              <div className="p-5 bg-gradient-to-r from-red-600 to-amber-600 text-white flex justify-between items-center">
+                <div className="flex items-center space-x-3 font-bold">
+                  <i className="fa-solid fa-bell animate-bounce text-xl"></i>
+                  <div>
+                    <h4 className="text-sm tracking-wide font-black">PERMIT BUTUH VERIFIKASI SEGERA</h4>
+                    <p className="text-[10px] opacity-80">Mohon lakukan tinjauan K3 lapangan berikut ini!</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowActionPopup(false)} className="p-1 hover:bg-black/10 rounded-full">
+                  <i className="fa-solid fa-xmark text-lg text-white"></i>
+                </button>
+              </div>
+
+              <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4 bg-slate-50">
+                {role === "karyawan" ? (
+                  actionQueue.map(ptw => {
+                    const locationsList = ptw.lokasi || [];
+                    return (
+                      <div key={ptw.id} className="p-4 rounded-xl border border-dashed border-red-500/50 bg-red-50 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-black text-red-600 text-xs">{ptw.id}</span>
+                          <span className="px-2.5 py-0.5 bg-red-600 text-white font-extrabold rounded text-[9px]">AWAITING HSE APPROVAL</span>
+                        </div>
+                        <div>
+                          <h5 className="font-extrabold text-sm">{ptw.vendor || "N/A"}</h5>
+                          <p className="text-xs text-slate-600 mt-1"><strong>Pekerjaan:</strong> {ptw.jenisPekerjaan || "-"}</p>
+                          <p className="text-xs text-slate-600"><strong>Sektor Pos Lintasan:</strong> {locationsList.join(", ")}</p>
+                        </div>
+                        <div className="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                          <button onClick={() => handleHseReject(ptw.id)} className="px-3 py-1.5 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 font-bold rounded-lg text-xs transition">Tolak</button>
+                          <button onClick={() => handleHseApprove(ptw.id)} className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-lg text-xs transition">Sahkan Dokumen</button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  actionQueue.map(ptw => (
+                    <div key={ptw.id} className="p-4 rounded-xl border border-dashed border-yellow-500/50 bg-yellow-50 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono font-black text-yellow-600 text-xs">{ptw.id}</span>
+                        <span className="px-2.5 py-0.5 bg-yellow-500 text-white font-extrabold rounded text-[9px] animate-pulse">VERIFIKASI FISIK SEKTOR</span>
+                      </div>
+                      <div>
+                        <h5 className="font-extrabold text-sm">{ptw.vendor || "N/A"}</h5>
+                        <p className="text-xs text-slate-600 mt-1"><strong>Jenis Pekerjaan:</strong> {ptw.jenisPekerjaan || "-"}</p>
+                        <p className="text-xs text-slate-750"><strong>Pos Verifikasi Sektor:</strong> <span className="font-bold text-slate-900 underline">{currentUser?.["Lokasi Tugas"] || "-"}</span></p>
+                      </div>
+                      <div className="flex justify-end pt-2 border-t border-slate-200">
+                        <button 
+                          onClick={() => handleSatpamVerify(ptw.id)}
+                          className="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-black rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-md"
+                        >
+                          <i className="fa-solid fa-clipboard-check"></i>
+                          <span>Izinkan Mulai &amp; Aktifkan Kuning Radar</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <header className="sticky top-0 z-50 px-4 py-3 flex flex-wrap items-center justify-between border-b bg-white border-slate-200 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow">
+              <i className="fa-solid fa-train-subway text-white"></i>
+            </div>
+            <div>
+              <h1 className="font-black tracking-tight text-base leading-tight text-slate-900">E-PTW REAL-TIME PORTAL</h1>
+              <p className="text-[10px] text-slate-500 font-bold tracking-wide">K3 &amp; DEPT. HSE LRT JAKARTA</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 my-2 sm:my-0">
+            <button 
+              onClick={() => setCurrentTab("dashboard")} 
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 ${currentTab === "dashboard" ? "bg-red-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+            >
+              <i className="fa-solid fa-map-location-dot"></i>
+              <span>Dashboard Map</span>
+            </button>
+            <button 
+              onClick={() => setCurrentTab("histori-ptw")} 
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 ${currentTab === "histori-ptw" ? "bg-red-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+            >
+              <i className="fa-solid fa-file-pdf"></i>
+              <span>Data PTW</span>
+            </button>
+            <button 
+              onClick={() => setCurrentTab("histori-pekerjaan")} 
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 ${currentTab === "histori-pekerjaan" ? "bg-red-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+            >
+              <i className="fa-solid fa-history"></i>
+              <span>Riwayat Pekerjaan</span>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => {
+                const targetMute = !muted;
+                setMuted(targetMute);
+                showToast(targetMute ? "Suara Dimatikan" : "Suara Diaktifkan");
+                if (!targetMute) {
+                  setTimeout(() => playNotificationSound('success'), 150);
+                }
+              }}
+              className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 transition"
+              title={muted ? "Nyalakan Audio" : "Senyapkan Audio"}
+            >
+              <i className={`fa-solid ${muted ? 'fa-volume-xmark text-red-500' : 'fa-volume-high text-emerald-600'} text-xs`}></i>
+            </button>
+
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifCenter(!showNotifCenter)}
+                className={`p-2.5 rounded-xl border transition relative ${showNotifCenter ? 'bg-red-50 border-red-300 text-red-600' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+                title="Sinyal Alur K3"
+              >
+                <i className="fa-solid fa-bell text-xs"></i>
+                {actionQueue.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                    {actionQueue.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifCenter && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[1000] overflow-hidden text-slate-800 font-sans">
+                  <div className="p-3 bg-slate-900 text-white flex justify-between items-center">
+                    <span className="text-xs font-black tracking-wide flex items-center gap-1.5">
+                      <i className="fa-solid fa-circle-nodes text-yellow-400"></i>
+                      <span>SINKRONISASI K3</span>
+                    </span>
+                    <button 
+                      onClick={() => playNotificationSound('success')}
+                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[9px] font-bold"
+                    >
+                      Tes Suara
+                    </button>
+                  </div>
+
+                  <div className="p-3 max-h-72 overflow-y-auto space-y-2 text-xs">
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px]">
+                      <p className="font-extrabold text-slate-600">STATUS SENSOR GPS:</p>
+                      <p className="text-slate-500 mt-0.5">
+                        {userCoords 
+                          ? `📡 Terhubung (Akurasi: ±${gpsAccuracy || 5}m, ${isSimulating ? 'Simulasi' : 'Aktif'})` 
+                          : '⚠️ Sensor Tidak Terdeteksi - Tekan Simulasi Berjalan di Peta'
+                        }
+                      </p>
+                    </div>
+
+                    <p className="font-extrabold text-[10px] text-slate-400 uppercase tracking-wider px-1 pt-1">Antrean Tindakan K3 ({actionQueue.length})</p>
+
+                    {actionQueue.length === 0 ? (
+                      <div className="text-center py-4 text-slate-400">
+                        <i className="fa-solid fa-square-check text-emerald-500 text-lg mb-1 block"></i>
+                        <span className="text-[10px] font-bold">Seluruh Sektor Terverifikasi</span>
+                      </div>
+                    ) : (
+                      actionQueue.map(ptw => {
+                        const locationsList = ptw.lokasi || [];
+                        return (
+                          <div 
+                            key={ptw.id} 
+                            onClick={() => {
+                              setShowNotifCenter(false);
+                              setCurrentTab("histori-pekerjaan");
+                            }}
+                            className="p-2.5 bg-red-50 border border-red-100 hover:bg-red-100/50 rounded-lg transition cursor-pointer space-y-1"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-mono text-[9px] font-bold text-red-600">{ptw.id}</span>
+                              <span className="text-[8px] bg-red-600 text-white px-1 rounded font-black uppercase">Butuh Tindakan</span>
+                            </div>
+                            <p className="font-bold text-[11px] text-slate-900 truncate">{ptw.vendor || "N/A"}</p>
+                            <p className="text-[9px] text-slate-500 truncate">{ptw.jenisPekerjaan || "-"}</p>
+                            <p className="text-[9px] text-slate-600 font-semibold"><i className="fa-solid fa-map-pin mr-1"></i>Sektor: {locationsList.join(", ")}</p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="p-2 bg-slate-50 border-t border-slate-200 text-center">
+                    <button 
+                      onClick={() => {
+                        setShowNotifCenter(false);
+                        setCurrentTab("histori-pekerjaan");
+                      }}
+                      className="text-[10px] text-red-600 font-extrabold hover:underline"
+                    >
+                      Lihat Semua Log Sektor &amp; rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
+              <div className="hidden sm:block text-right">
+                <p className="text-xs font-black capitalize text-slate-900">{currentUser?.Nama || "User"}</p>
+                <p className="text-[9px] text-slate-500 uppercase font-semibold">Sektor: {currentUser?.["Lokasi Tugas"] || "Pos Sektor LRT"}</p>
+              </div>
+              <button onClick={handleLogoutTrigger} className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition" title="Keluar">
+                <i className="fa-solid fa-power-off text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto p-4 space-y-6">
+          
+          <div className="p-4 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <span className="flex h-3 w-3 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+              </span>
+              <div>
+                <h3 className="font-bold text-sm text-slate-800">DASHBOARD ({role === "karyawan" ? "HSE QQSHE" : currentUser?.["Lokasi Tugas"] || "Sektor"})</h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Mendeteksi <strong className="text-yellow-600 font-bold">{wipCountResolved} Sektor Aktif Bekerja (Radar Kuning)</strong> dan <strong className="text-emerald-600 font-bold">{pendingTotalCount} Standby (Hijau)</strong> di Lintasan Rel
+                </p>
+              </div>
+            </div>
+            
+            {role === "satpam" && (
+              <button 
+                onClick={openCreateModal}
+                className="w-full md:w-auto px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition text-xs tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-red-600/20"
+              >
+                <i className="fa-solid fa-file-invoice-dollar text-sm"></i>
+                <span>AJUKAN PTW BARU</span>
+              </button>
+            )}
+          </div>
+
+          <div className="p-4 rounded-2xl border flex flex-wrap gap-4 items-center justify-between bg-white border-slate-200 shadow-sm">
+            <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-96">
+              <i className="fa-solid fa-search text-slate-400 text-xs pl-2"></i>
+              <input 
+                type="text" 
+                placeholder="Cari Dokumen PTW, Vendor, atau Pekerjaan..." 
+                className="bg-transparent text-xs text-slate-800 focus:outline-none w-full placeholder-slate-400 font-sans"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Permit :</span>
+              <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                {["Semua", "Aktif", "Expired"].map((st) => (
+                  <button 
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${statusFilter === st ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"}`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ================= TAB 1: DASHBOARD MAP & GRAFIK ================= */}
+          {currentTab === "dashboard" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* PETA UTAMA KENDALI */}
+                <div className={isMapFullscreen ? "fixed inset-0 z-[100] w-screen h-screen bg-slate-100 p-4 flex flex-col" : "lg:col-span-7"}>
+                  <div className={isMapFullscreen ? "flex-1 flex flex-col h-full bg-white p-4 rounded-3xl shadow-2xl border border-slate-200" : "p-4 rounded-2xl border h-[480px] flex flex-col bg-white border-slate-200 shadow-sm relative overflow-hidden"}>
+                    
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-200">
+                      <div className="flex items-center space-x-2">
+                        <i className="fa-solid fa-location-dot text-red-500 text-sm animate-pulse"></i>
+                        <h4 className="font-black text-xs tracking-wider uppercase text-slate-700">Peta GPS Navigasi Berjalan LRTJ</h4>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={toggleSimulation}
+                          className={`px-3 py-1.5 ${isSimulating ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} font-extrabold rounded-lg text-[11px] transition-all flex items-center space-x-1.5 border border-slate-300 shadow-sm`}
+                          title="Simulasikan rute berjalan menyusuri rel"
+                        >
+                          <i className={`fa-solid ${isSimulating ? 'fa-person-walking-arrow-loop-left animate-bounce' : 'fa-play'}`}></i>
+                          <span>{isSimulating ? "Stop Simulasi" : "Simulasi Berjalan"}</span>
+                        </button>
+
+                        <button 
+                          onClick={() => setLockCamera(!lockCamera)}
+                          className={`px-3 py-1.5 ${lockCamera ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'} font-extrabold rounded-lg text-[11px] transition-all flex items-center space-x-1 border border-slate-300 shadow-sm`}
+                          title="Kunci kamera agar selalu mengikuti posisi GPS Anda"
+                        >
+                          <i className={`fa-solid fa-location-crosshairs ${lockCamera ? 'animate-spin' : ''}`}></i>
+                          <span>{lockCamera ? "Ikuti Saya" : "Bebas"}</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => setIsMapFullscreen(!isMapFullscreen)}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-lg text-[11px] transition-all flex items-center space-x-1.5 border border-slate-300 shadow-sm"
+                        >
+                          <i className={`fa-solid ${isMapFullscreen ? 'fa-compress text-red-600' : 'fa-expand text-blue-600'}`}></i>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {userCoords && (
+                      <div className="absolute top-16 left-8 z-[1000] bg-white/80 p-2 text-[10px] font-mono space-y-1 pointer-events-none select-none rounded-lg border border-slate-200">
+                        <div className="flex items-center space-x-2 border-b border-slate-400/40 pb-1 mb-1 text-blue-700 font-sans font-bold">
+                          <i className="fa-solid fa-satellite-dish animate-pulse"></i>
+                          <span>TELEMETRI GPS AKTIF</span>
+                        </div>
+                        <p>Latitude: <span className="text-slate-950 font-bold">{userCoords.lat.toFixed(6)}</span></p>
+                        <p>Longitude: <span className="text-slate-950 font-bold">{userCoords.lng.toFixed(6)}</span></p>
+                        <p>Akurasi: <span className="text-emerald-700 font-bold">± {gpsAccuracy || 5} m</span></p>
+                        <p>Kecepatan: <span className="text-amber-700 font-bold">{gpsSpeed || 0} km/j</span></p>
+                      </div>
+                    )}
+                    
+                    <div id="map-viewport" className="flex-1 rounded-xl overflow-hidden shadow-inner z-10 border border-slate-200" />
+                  </div>
+                </div>
+
+                {/* AREA GRAFIK */}
+                {!isMapFullscreen && (
+                  <div className="lg:col-span-5 grid grid-cols-1 gap-6">
+                    <div className="p-4 rounded-2xl border h-[225px] flex flex-col justify-between bg-white border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h5 className="font-black text-xs tracking-wider text-slate-500 uppercase">Pekerja per Lokasi (Klik Balok)</h5>
+                        <i className="fa-solid fa-users-gear text-slate-400"></i>
+                      </div>
+                      <div className="flex-1 relative mt-2">
+                        <canvas ref={chartPekerjaRef}></canvas>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl border h-[225px] flex flex-col justify-between bg-white border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <div>
+                          <h5 className="font-black text-xs tracking-wider text-slate-500 uppercase">Tren Pengajuan PTW 7 Hari Terakhir</h5>
+                        </div>
+                        <i className="fa-solid fa-chart-line text-slate-400"></i>
+                      </div>
+                      <div className="flex-1 relative mt-2">
+                        <canvas ref={chartStatusRef}></canvas>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 2: DATA PTW ================= */}
+          {currentTab === "histori-ptw" && (
+            <div className="p-5 rounded-2xl border bg-white border-slate-200 shadow-sm">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-4 mb-4">
+                <div>
+                  <h4 className="font-black text-base text-slate-800">Arsip Dokumen Resmi E-PTW LRT Jakarta</h4>
+                  <p className="text-xs text-slate-500 mt-1 font-sans">Unduh lembar dokumen PDF resmi PTW &amp; APD sesuai dengan standar K3 departemen HSE.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {visiblePtwDB.map((ptw) => {
+                  const resolvedStatus = getPtwStatusForUser(ptw);
+                  const parsedStatus = parseServerPtwStatus(ptw.status);
+                  const isPermitAktif = resolvedStatus === "Permit Aktif";
+                  const isExpired = resolvedStatus === "Expired";
+                  const locationsList = ptw.lokasi || [];
+
+                  return (
+                    <div key={ptw.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-4 hover:border-slate-350 transition shadow-sm">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <span className="font-mono text-xs text-slate-500 font-extrabold">{ptw.id}</span>
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
+                            isPermitAktif ? 'bg-green-100 text-green-700 border border-green-300 animate-pulse' :
+                            isExpired ? 'bg-red-100 text-red-700 border border-red-300' :
+                            'bg-slate-100 text-slate-600 border border-slate-300'
+                          }`}>
+                            {resolvedStatus}
+                          </span>
+                        </div>
+                        <h4 className="font-black text-base text-slate-800 mt-3">{ptw.vendor || "N/A"}</h4>
+                        <div className="space-y-1 mt-2 text-xs text-slate-600 font-medium">
+                          <p><strong>No Permit:</strong> {ptw.ptwNo || "-"}</p>
+                          <p><strong>Rute Sektor:</strong> {locationsList.join(", ")}</p>
+
+                          {(parsedStatus.baseStatus === "Approved" || parsedStatus.baseStatus === "Work In Progress" || parsedStatus.baseStatus === "Awaiting Satpam Verification") && (
+                            <div className="mt-1.5 p-2 bg-white rounded-lg border border-slate-200 text-[11px] leading-tight shadow-sm">
+                              <p className="font-bold text-slate-500">Masa Berlaku Permit:</p>
+                              <div className="flex items-center space-x-1.5 mt-0.5">
+                                <span className={`w-2.5 h-2.5 rounded-full inline-block ${isPermitAktif ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                <span className={`font-black uppercase tracking-wide ${isPermitAktif ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPermitAktif ? "Permit Aktif" : "Expired"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <p><strong>Verified Sektor:</strong> {parsedStatus.verified.length > 0 ? parsedStatus.verified.join(", ") : "-"}</p>
+                          <p><strong>Completed Sektor:</strong> {parsedStatus.completed.length > 0 ? parsedStatus.completed.join(", ") : "-"}</p>
+                          <p><strong>Pengawas:</strong> {ptw.penanggungJawab || "-"}</p>
+                          <p><strong>Personel:</strong> {ptw.jumlahPekerja || 0} Crew</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                        <button 
+                          onClick={() => setPreviewPdfPtw(ptw)}
+                          className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs transition flex items-center space-x-1.5 border border-slate-300"
+                        >
+                          <i className="fa-solid fa-eye"></i>
+                          <span>Pratinjau PTW</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setPreviewPdfPtw(ptw);
+                            setTimeout(() => handleDownloadPdf(ptw), 300);
+                          }}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs transition flex items-center space-x-1.5 shadow-md shadow-red-600/10"
+                        >
+                          <i className="fa-solid fa-file-pdf"></i>
+                          <span>Download PDF</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 3: RIWAYAT PEKERJAAN VENDOR ================= */}
+          {currentTab === "histori-pekerjaan" && (
+            <div className="p-5 rounded-2xl border bg-white border-slate-200 shadow-sm">
+              <div className="border-b border-slate-200 pb-4 mb-4">
+                <h4 className="font-black text-base text-slate-800">Log Kegiatan &amp; Histori Pekerjaan Lapangan</h4>
+                <p className="text-xs text-slate-500 mt-1 font-sans">Daftar lengkap rekam jejak pekerjaan konstruksi dan perawatan jalur lintasan yang dilakukan oleh vendor kontraktor.</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-2">ID Dokumen</th>
+                      <th className="py-3 px-2">Nama Instansi / Perusahaan</th>
+                      <th className="py-3 px-2">Deskripsi Kerja Lapangan</th>
+                      <th className="py-3 px-2">Sektor Kerja</th>
+                      <th className="py-3 px-2">Status Sektor Aktif</th>
+                      <th className="py-3 px-2">Rentang Waktu Terjadwal</th>
+                      <th className="py-3 px-2 text-right">Tindakan Akhir Sektor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                    {visiblePtwDB.map((ptw) => {
+                      const resolvedStatus = getPtwStatusForUser(ptw);
+                      const parsedStatus = parseServerPtwStatus(ptw.status);
+                      const isPermitAktif = resolvedStatus === "Permit Aktif";
+                      const locationsList = ptw.lokasi || [];
+                      
+                      return (
+                        <tr key={ptw.id} className="hover:bg-slate-100 transition">
+                          <td className="py-3.5 px-2 font-mono font-bold text-slate-500">{ptw.id}</td>
+                          <td className="py-3.5 px-2 font-extrabold text-sm text-slate-900">{ptw.vendor || "N/A"}</td>
+                          <td className="py-3.5 px-2 text-slate-700 font-medium max-w-[320px]">{ptw.jenisPekerjaan || "-"}</td>
+                          <td className="py-3.5 px-2 font-bold text-red-650">{locationsList.join(", ")}</td>
+                          <td className="py-3.5 px-2 font-semibold">
+                            <div className="flex flex-col space-y-1 text-[10px]">
+                              <span><strong>Verified:</strong> {parsedStatus.verified.length > 0 ? parsedStatus.verified.join(", ") : "-"}</span>
+                              <span><strong>Completed:</strong> {parsedStatus.completed.length > 0 ? parsedStatus.completed.join(", ") : "-"}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-2">
+                            <p className="font-medium text-slate-700">{formatDateOnly(ptw.tanggalMulai)} s/d {formatDateOnly(ptw.tanggalSelesai)}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">Waktu: {ptw.jamMulai} - {ptw.jamSelesai} WIB</p>
+                          </td>
+                          
+                          <td className="py-3.5 px-2 text-right">
+                            {isPermitAktif && (
+                              <div className="flex flex-col gap-1 items-end">
+                                {role === "satpam" ? (() => {
+                                  const myLoc = currentUser?.["Lokasi Tugas"];
+                                  if (!myLoc) return null;
+                                  const isMyLocActive = locationsList.some(loc => String(loc || "").toLowerCase().trim() === myLoc.toLowerCase().trim());
+                                  const isAlreadyVerified = parsedStatus.verified.some(loc => String(loc || "").toLowerCase().trim() === myLoc.toLowerCase().trim());
+                                  const isAlreadyCompleted = parsedStatus.completed.some(loc => String(loc || "").toLowerCase().trim() === myLoc.toLowerCase().trim());
+                                  
+                                  if (isMyLocActive && isAlreadyVerified && !isAlreadyCompleted) {
+                                    return (
+                                      <button 
+                                        onClick={() => handleForceComplete(ptw.id, myLoc)}
+                                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-[10px] transition shadow-md shadow-red-600/15"
+                                      >
+                                        <i className="fa-solid fa-circle-stop mr-1"></i>
+                                        AKHIRI SEKTOR SAYA
+                                      </button>
+                                    );
+                                  }
+                                  return <span className="text-[10px] text-slate-400 italic">Bukan tugas pos Anda / belum verifikasi</span>;
+                                })() : (
+                                  locationsList.map(loc => {
+                                    const isVerified = parsedStatus.verified.some(v => String(v || "").toLowerCase().trim() === String(loc || "").toLowerCase().trim());
+                                    const isCompleted = parsedStatus.completed.some(c => String(c || "").toLowerCase().trim() === String(loc || "").toLowerCase().trim());
+                                    
+                                    if (isVerified && !isCompleted) {
+                                      return (
+                                        <button 
+                                          key={loc}
+                                          onClick={() => handleForceComplete(ptw.id, loc)}
+                                          className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-[9px] transition shadow-sm mb-1"
+                                          title={`Selesaikan pekerjaan di ${loc}`}
+                                        >
+                                          <i className="fa-solid fa-circle-stop mr-1"></i>
+                                          Selesaikan {loc}
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </main>
+
+        {/* ================= MODAL: FORMULIR PENGAJUAN IZIN PTW ================= */}
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+            <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
+              <div className="p-5 flex justify-between items-center bg-red-600 text-white">
+                <div className="flex items-center space-x-2">
+                  <i className="fa-solid fa-file-contract text-xl"></i>
+                  <div>
+                    <h3 className="font-extrabold text-sm tracking-wide">FORMULIR PENGAJUAN IZIN K3 PTW</h3>
+                    <p className="text-[10px] text-red-100 font-semibold uppercase">LRTJ-FR-MKL-003 - Format Terintegrasi Otomatis</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsCreateModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-white">
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePTW} className="p-6 overflow-y-auto space-y-6 text-xs flex-1 text-slate-800 bg-slate-50">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Permit To Work No.</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formPtwNo}
+                        onChange={(e) => setFormPtwNo(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">JSA (Job Safety Analysis) No.</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formJsaNo}
+                        onChange={(e) => setFormJsaNo(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 text-[10px] font-mono leading-relaxed text-slate-600 space-y-1">
+                    <p className="font-black text-slate-800 border-b border-slate-200 pb-1 mb-1">DATA DOKUMEN MASTER:</p>
+                    <p>Nomor Dokumen : LRTJ-FR-MKL-003</p>
+                    <p>Tanggal Efektif : 2022-09-06</p>
+                    <p>Format : PDF / Digital K3 Terpusat</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="space-y-3">
+                    <h4 className="font-black text-red-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM A: DETAIL INSTANSI</h4>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Nama Instansi / Perusahaan</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none font-bold focus:ring-1 focus:ring-red-600"
+                        value={formVendor}
+                        onChange={(e) => setFormVendor(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Nama Pengawas Pelaksana</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formPenanggungJawab}
+                        onChange={(e) => setFormPenanggungJawab(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">SHE Pelaksana</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formShePelaksana}
+                        onChange={(e) => setFormShePelaksana(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Pemberi Kerja</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formPemberiKerja}
+                        onChange={(e) => setFormPemberiKerja(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-black text-red-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM B: DETAIL LAPANGAN</h4>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Lokasi Kerja (Centang Multi-Stasiun)</label>
+                      <div className="grid grid-cols-2 gap-1 p-2.5 bg-slate-50 border border-slate-300 rounded-lg max-h-36 overflow-y-auto">
+                        {listLokasiTugas.map(st => (
+                          <label key={st.id} className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-slate-200">
+                            <input 
+                              type="checkbox"
+                              checked={formLokasi.includes(st.id)}
+                              onChange={() => handleStationCheckbox(st.id)}
+                              className="rounded text-red-600 focus:ring-red-600 w-4 h-4"
+                            />
+                            <span className="font-semibold text-slate-700">{st.id}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Pengawas Pemberi Kerja</label>
+                      <input 
+                        type="text" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                        value={formPengawasPemberiKerja}
+                        onChange={(e) => setFormPengawasPemberiKerja(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-500 uppercase mb-1">Jumlah Personel Pelaksana</label>
+                      <input 
+                        type="number" 
+                        required 
+                        className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none font-bold focus:ring-1 focus:ring-red-600"
+                        value={formPekerjaCount}
+                        onChange={(e) => setFormPekerjaCount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-500 uppercase mb-1">Nama Personel Pelaksana (Dipisah Koma)</label>
+                  <textarea 
+                    rows="2"
+                    required
+                    placeholder="Contoh: Ginanjar, Jajang, Muarip, Agles, Gangsar..."
+                    className="w-full p-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 outline-none font-semibold text-xs focus:ring-1 focus:ring-red-600 font-sans"
+                    value={formPersonelList}
+                    onChange={(e) => setFormPersonelList(e.target.value)}
+                  />
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                  <h4 className="font-black text-yellow-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM C: IZIN DIBERIKAN TERBATAS</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-1">Dari Tanggal</label>
+                        <input type="date" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-red-600 font-sans" value={formTglMulai} onChange={(e) => setFormTglMulai(e.target.value)}/>
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-1">S/D Tanggal</label>
+                        <input type="date" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-red-600 font-sans" value={formTglSelesai} onChange={(e) => setFormTglSelesai(e.target.value)}/>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-1">Dari Jam</label>
+                        <input type="time" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-mono font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formJamMulai} onChange={(e) => setFormJamMulai(e.target.value)}/>
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-1">S/D Jam</label>
+                        <input type="time" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-mono font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formJamSelesai} onChange={(e) => setFormJamSelesai(e.target.value)}/>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-500 uppercase mb-1">Deskripsi Pekerjaan Utama</label>
+                  <textarea 
+                    rows="3" 
+                    required 
+                    className="w-full p-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                    value={formPekerjaan}
+                    onChange={(e) => setFormPekerjaan(e.target.value)}
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                  <h4 className="font-black text-blue-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM D: ALAT BANTU &amp; APD</h4>
+                  
+                  <div className="flex items-center space-x-6 bg-slate-50 p-2.5 rounded border border-slate-200">
+                    <span className="font-extrabold text-slate-700">1. Alat Kerja Berpotensi Api:</span>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input type="radio" name="potensiApi" value="Ada" checked={formPotensiApi === "Ada"} onChange={() => setFormPotensiApi("Ada")} className="w-4 h-4 text-red-600"/>
+                      <span className="font-bold text-red-600">Ada (Api Terbuka)</span>
+                    </label>
+                    <label className="flex items-center space-x-1 cursor-pointer">
+                      <input type="radio" name="potensiApi" value="Tidak" checked={formPotensiApi === "Tidak"} onChange={() => setFormPotensiApi("Tidak")} className="w-4 h-4 text-slate-600"/>
+                      <span className="font-bold text-slate-600">Tidak</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <span className="font-extrabold text-slate-700 block mb-2">2. Alat Pelindung Diri (APD):</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      {Object.keys(formApdList).map((apd) => {
+                        if (apd === "Lain-lain") return null;
+                        return (
+                          <label key={apd} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-200 p-1 rounded">
+                            <input 
+                              type="checkbox" 
+                              checked={formApdList[apd]} 
+                              onChange={(e) => setFormApdList({ ...formApdList, [apd]: e.target.checked })}
+                              className="rounded text-blue-600 w-4 h-4"
+                            />
+                            <span className="text-[11px] font-semibold text-slate-700">{apd}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+                      <span className="font-bold text-slate-700 block">3. Perlengkapan Isolasi:</span>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span>Membawa bahan kimia?</span>
+                        <div className="flex space-x-2">
+                          <button type="button" onClick={() => setFormIsolasiBahanKimia("Ya")} className={`px-2 py-1 rounded font-bold ${formIsolasiBahanKimia === "Ya" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Ya</button>
+                          <button type="button" onClick={() => setFormIsolasiBahanKimia("Tidak")} className={`px-2 py-1 rounded font-bold ${formIsolasiBahanKimia === "Tidak" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Tidak</button>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span>MSDS terlampir?</span>
+                        <div className="flex space-x-2">
+                          <button type="button" onClick={() => setFormIsolasiMsds("Ya")} className={`px-2 py-1 rounded font-bold ${formIsolasiMsds === "Ya" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Ya</button>
+                          <button type="button" onClick={() => setFormIsolasiMsds("Tidak")} className={`px-2 py-1 rounded font-bold ${formIsolasiMsds === "Tidak" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Tidak</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+                      <span className="font-bold text-slate-700 block">4. Lock Out / Tag Out (LOTO):</span>
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                        <div className="flex justify-between items-center">
+                          <span>Prosedur LOTO?</span>
+                          <button type="button" onClick={() => setFormLotoProsedur(formLotoProsedur === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoProsedur === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoProsedur}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>LOTO Listrik?</span>
+                          <button type="button" onClick={() => setFormLotoListrik(formLotoListrik === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoListrik === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoListrik}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>LOTO Mekanis?</span>
+                          <button type="button" onClick={() => setFormLotoMekanis(formLotoMekanis === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoMekanis === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoMekanis}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>LOTO Hidrolik?</span>
+                          <button type="button" onClick={() => setFormLotoHidrolik(formLotoHidrolik === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoHidrolik === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoHidrolik}</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg transition shadow-md shadow-red-600/10"
+                  >
+                    Kirim Pengajuan PTW
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL DETIL VENDOR DAN PEKERJAAN ================= */}
+        {selectedChartLocation && (
+          <div className="fixed inset-0 z-[1000] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <i className="fa-solid fa-hard-hat text-yellow-400"></i>
+                  <div>
+                    <h4 className="font-extrabold text-sm uppercase">Detail Konstruksi Sektor: {selectedChartLocation}</h4>
+                    <p className="text-[10px] text-slate-400">Menampilkan seluruh rincian vendor pelaksana aktif</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedChartLocation(null)}
+                  className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white"
+                >
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-4 bg-slate-50 text-xs">
+                {selectedLocationPTWs.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <i className="fa-solid fa-folder-open text-slate-300 text-4xl"></i>
+                    <p className="text-slate-500 font-bold">Tidak ada aktivitas pekerjaan yang aktif di {selectedChartLocation} saat ini.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedLocationPTWs.map(ptw => {
+                      const resolvedStatus = getPtwStatusForUser(ptw);
+                      return (
+                        <div key={ptw.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 shadow-sm hover:border-slate-350 transition">
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <div>
+                              <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-mono font-bold mr-2">{ptw.id}</span>
+                              <span className="font-mono text-[10px] text-slate-400">{ptw.ptwNo || "-"}</span>
+                            </div>
+                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-[9px] font-black uppercase rounded border border-yellow-300">
+                              {resolvedStatus}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-slate-700">
+                            <p className="text-sm font-black text-slate-950 flex items-center gap-1.5">
+                              <i className="fa-solid fa-building text-slate-400"></i>
+                              <span>{ptw.vendor || "N/A"}</span>
+                            </p>
+                            <p><strong>Deskripsi Pekerjaan:</strong> {ptw.jenisPekerjaan || "-"}</p>
+                            
+                            <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                              <p><strong>Pengawas Lapangan:</strong> <span className="text-slate-900 font-bold">{ptw.penanggungJawab || "-"}</span></p>
+                              <p><strong>SHE Pelaksana:</strong> {ptw.shePelaksana || "-"}</p>
+                              <p><strong>Jumlah Crew:</strong> <span className="text-blue-600 font-extrabold">{ptw.jumlahPekerja || 0} Personel</span></p>
+                              <p><strong>Masa Berlaku:</strong> <span className="font-mono text-[10px]">{formatDateOnly(ptw.tanggalMulai)} s/d {formatDateOnly(ptw.tanggalSelesai)}</span></p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end">
+                <button 
+                  onClick={() => setSelectedChartLocation(null)}
+                  className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg transition"
+                >
+                  Tutup Rincian
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL: PRATINJAU DOKUMEN & PDF GENERATION ================= */}
+        {previewPdfPtw && (() => {
+          let parsedApd = {};
+          try {
+            parsedApd = typeof previewPdfPtw.apdList === 'string' 
+              ? JSON.parse(previewPdfPtw.apdList) 
+              : (previewPdfPtw.apdList || {});
+          } catch(e) {
+            parsedApd = {};
+          }
+          const locationsList = previewPdfPtw.lokasi || [];
+
+          return (
+            <div className="fixed inset-0 z-[1000] bg-slate-900/60 backdrop-blur-md flex flex-col p-4 overflow-y-auto">
+              <div className="w-full max-w-4xl mx-auto bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl flex flex-col my-4">
+                <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-100 text-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <i className="fa-solid fa-file-pdf text-red-600 text-lg"></i>
+                    <span className="font-extrabold text-sm uppercase">Permit To Work PDF Document Engine</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => handleDownloadPdf(previewPdfPtw)}
+                      className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs transition flex items-center space-x-1"
+                    >
+                      <i className="fa-solid fa-cloud-arrow-down"></i>
+                      <span>Export PDF</span>
+                    </button>
+                    <button onClick={() => setPreviewPdfPtw(null)} className="p-1 hover:bg-slate-200 rounded-lg text-slate-500">
+                      <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white text-slate-900 overflow-x-auto">
+                  <div id="pdf-render-target" className="w-[190mm] mx-auto p-6 bg-white text-slate-900" style={{ pageBreakBefore: 'always', fontFamily: 'Arial, sans-serif' }}>
+                    
+                    {/* Header Logo */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ verticalAlign: 'middle' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img src="https://upload.wikimedia.org/wikipedia/id/0/0a/Logo_LRT_Jakarta.png" style={{ height: '40px' }} alt="LRT Jakarta" />
+                              <span style={{ fontFamily: 'Century Schoolbook, Georgia, serif', fontSize: '18px', fontWeight: '900', fontStyle: 'italic', color: '#1e293b' }}>LRT JAKARTA</span>
+                            </div>
+                          </td>
+                          <td style={{ width: '180px', textAlign: 'right' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '8px', textAlign: 'left' }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ border: '1px solid #000', padding: '3px 5px', fontWeight: 'bold', width: '45%', backgroundColor: '#fff' }}>Nomor Dokumen</td>
+                                  <td style={{ border: '1px solid #000', padding: '3px 5px', fontFamily: 'monospace' }}>LRTJ-FR-MKL-003</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ border: '1px solid #000', padding: '3px 5px', fontWeight: 'bold' }}>Tanggal Efektif</td>
+                                  <td style={{ border: '1px solid #000', padding: '3px 5px' }}>2022-09-06</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div style={{ borderBottom: '2px solid #000', marginBottom: '8px' }}></div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', fontSize: '10px', fontWeight: 'bold' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: '50%' }}>
+                            Permit To Work No.: <span style={{ fontWeight: 'normal', fontFamily: 'monospace' }}>{previewPdfPtw.ptwNo || "-"}</span>
+                          </td>
+                          <td style={{ width: '50%', textAlign: 'left', paddingLeft: '8px' }}>
+                            JSA (Job Safety Analysis) No.: <span style={{ fontWeight: 'normal', fontFamily: 'monospace' }}>{previewPdfPtw.jsaNo || "-"}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1.5px solid #000', fontSize: '9px', marginBottom: '1px' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: '50%', borderRight: '1.5px solid #000', padding: '6px', verticalAlign: 'top' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: '42%', padding: '2px 0', verticalAlign: 'top' }}>Nama Instansi / Perusahaan</td>
+                                  <td style={{ width: '3%', padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ width: '55%', padding: '2px 0', fontWeight: 'bold', verticalAlign: 'top' }}>{previewPdfPtw.vendor || "N/A"}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>Penanggung Jawab Pelaksana</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', fontWeight: 'bold', verticalAlign: 'top' }}>{previewPdfPtw.penanggungJawab || "-"}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>SHE Pelaksana</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>{previewPdfPtw.shePelaksana || "-"}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>Pemberi Kerja</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>{previewPdfPtw.pemberiKerja || "-"}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                          <td style={{ width: '50%', padding: '6px', verticalAlign: 'top' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: '42%', padding: '2px 0', verticalAlign: 'top' }}>Lokasi / bagian kerja</td>
+                                  <td style={{ width: '3%', padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ width: '55%', padding: '2px 0', fontWeight: 'bold', verticalAlign: 'top' }}>{locationsList.join(", ")}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>Pengawas Pemberi Kerja</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>{previewPdfPtw.pengawasPemberiKerja || "-"}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>Jumlah Personel</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', fontWeight: 'bold', verticalAlign: 'top' }}>{previewPdfPtw.jumlahPekerja || 0}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>Nama Personel Pelaksana</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                                  <td style={{ padding: '2px 0', verticalAlign: 'top', fontSize: '8px', lineHeight: '1.2' }}>{previewPdfPtw.personelList || "..................."}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div style={{ border: '1.5px solid #000', borderTop: 'none', padding: '6px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', marginBottom: '8px' }}>
+                      <div style={{ fontWeight: 'bold' }}>Izin diberikan terbatas :</div>
+                      <div>Dari Tanggal <span style={{ fontWeight: 'bold' }}>{formatDateOnly(previewPdfPtw.tanggalMulai)}</span> s/d <span style={{ fontWeight: 'bold' }}>{formatDateOnly(previewPdfPtw.tanggalSelesai)}</span></div>
+                      <div>Dari Jam <span style={{ fontWeight: 'bold' }}>{previewPdfPtw.jamMulai || "00:00"}</span> s/d <span style={{ fontWeight: 'bold' }}>{previewPdfPtw.jamSelesai || "23:59"}</span></div>
+                    </div>
+
+                    <div style={{ marginBottom: '8px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold' }}>Deskripsi Pekerjaan:</div>
+                      <div style={{ marginTop: '2px', lineHeight: '1.3' }}>{previewPdfPtw.jenisPekerjaan || "-"}</div>
+                    </div>
+
+                    <div style={{ marginBottom: '10px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold' }}>Perlengkapan / Peralatan Yang Harus Digunakan:</div>
+                      <div style={{ marginTop: '2px', fontStyle: 'italic', color: '#334155' }}>
+                        "Toolbox set, Tangga, Bor Listrik, Gerinda, Handy Talkie, Full Body Harness, Safety Lines, APAR Portable"
+                      </div>
+                    </div>
+
+                    <div style={{ fontWeight: 'bold', fontSize: '10.5px', marginBottom: '6px' }}>Alat Bantu Kerja &amp; Material</div>
+
+                    <div style={{ marginBottom: '8px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>1. Alat kerja berpotensi Api</div>
+                      <span style={{ marginRight: '20px' }}>{previewPdfPtw.potensiApi === "Ada" ? "☑" : "☐"} Ada</span>
+                      <span>{previewPdfPtw.potensiApi !== "Ada" ? "☑" : "☐"} Tidak</span>
+                    </div>
+
+                    <div style={{ marginBottom: '8px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>2. Alat pelindung diri (APD)</div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5px', lineHeight: '1.4' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: '25%', verticalAlign: 'top' }}>
+                              <div>{parsedApd["Safety Helmet"] ? "☑" : "☐"} Safety Helmet</div>
+                              <div>{parsedApd["Safety Vest"] ? "☑" : "☐"} Safety Vest</div>
+                              <div>{parsedApd["Safety Shoes"] ? "☑" : "☐"} Safety Shoes</div>
+                              <div>{parsedApd["Ear Muff"] ? "☑" : "☐"} Ear Muff</div>
+                              <div>{parsedApd["Ear Plug"] ? "☑" : "☐"} Ear Plug</div>
+                              <div>{parsedApd["Hair Protection"] ? "☑" : "☐"} Hair Protection</div>
+                            </td>
+                            <td style={{ width: '25%', verticalAlign: 'top' }}>
+                              <div>{parsedApd["Face Protector"] ? "☑" : "☐"} Face Protector</div>
+                              <div>{parsedApd["Welding Mask"] ? "☑" : "☐"} Welding Mask</div>
+                              <div>{parsedApd["Apron"] ? "☑" : "☐"} Apron</div>
+                              <div>{parsedApd["Welding Clothes"] ? "☑" : "☐"} Welding Clothes</div>
+                              <div>{parsedApd["Protective Clothing"] ? "☑" : "☐"} Protective Clothing</div>
+                              <div>{parsedApd["Leather Gloves"] ? "☑" : "☐"} Leather Gloves</div>
+                            </td>
+                            <td style={{ width: '25%', verticalAlign: 'top' }}>
+                              <div>{parsedApd["Gas Mask"] ? "☑" : "☐"} Gas Mask</div>
+                              <div>{parsedApd["Dust Mask"] ? "☑" : "☐"} Dust Mask</div>
+                              <div>{parsedApd["Breathing Apparatus"] ? "☑" : "☐"} Breathing Apparatus</div>
+                              <div>{parsedApd["Nitrile Gloves"] ? "☑" : "☐"} Nitrile Gloves</div>
+                              <div>{parsedApd["Cotton Gloves"] ? "☑" : "☐"} Cotton Gloves</div>
+                              <div>{parsedApd["Full Body Harness"] ? "☑" : "☐"} Full Body Harness</div>
+                            </td>
+                            <td style={{ width: '25%', verticalAlign: 'top' }}>
+                              <div>{parsedApd["Goggles"] ? "☑" : "☐"} Goggles</div>
+                              <div>{parsedApd["Safety Glasses"] ? "☑" : "☐"} Safety Glasses</div>
+                              <div style={{ marginTop: '5px' }}>Lain-lain:</div>
+                              <div style={{ borderBottom: '1px solid #000', width: '90%', height: '12px' }}></div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ marginBottom: '8px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>3. Perlengkapan isolasi :</div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5px' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: '65%', padding: '2px 0' }}>➔ Apakah membawa / memakai / menangani bahan kimia?</td>
+                            <td style={{ width: '35%', padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.isolasiBahanKimia === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.isolasiBahanKimia !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 0' }}>➔ Melaporkan / menyerahkan / menyimpan salinan MSDS?</td>
+                            <td style={{ padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.isolasiMsds === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.isolasiMsds !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ marginBottom: '10px', fontSize: '9.5px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>4. LOTO (Lock Out / Tag Out)</div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5px' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: '65%', padding: '2px 0' }}>➔ Prosedur Lock Out / Tag Out (LOTO)</td>
+                            <td style={{ width: '35%', padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.lotoProsedur === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.lotoProsedur !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 0' }}>➔ Lock Out / Tag Out (LOTO) Listrik</td>
+                            <td style={{ padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.lotoListrik === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.lotoListrik !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 0' }}>➔ Lock Out / Tag Out (LOTO) Mekanis / Fisik</td>
+                            <td style={{ padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.lotoMekanis === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.lotoMekanis !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '2px 0' }}>➔ Lock Out / Tag Out (LOTO) Hidrolik / Pneumatik</td>
+                            <td style={{ padding: '2px 0' }}>
+                              <span style={{ marginRight: '20px' }}>{previewPdfPtw.lotoHidrolik === "Ya" ? "☑" : "☐"} Ya</span>
+                              <span>{previewPdfPtw.lotoHidrolik !== "Ya" ? "☑" : "☐"} Tidak</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ borderBottom: '1px solid #000', marginBottom: '8px' }}></div>
+
+                    <div style={{ fontSize: '8.5px', lineHeight: '1.4', marginBottom: '12px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '9.5px', marginBottom: '4px' }}>PERSETUJUAN KERJA (QQSHE LRT JAKARTA)</div>
+                      <p style={{ textAlign: 'justify', marginBottom: '4px' }}>
+                        Setelah membaca dan memahami segala situasi yang berlaku di dalam lingkungan operasional LRT Jakarta, maka saya selaku pelaksana pekerjaan menyetujui persyaratan yang ada dan sanggup memenuhi peraturan yang berlaku.
+                      </p>
+                      <p style={{ textAlign: 'justify' }}>
+                        Saya mengisi lembar izin kerja ini dengan keterangan yang benar dan bersungguh-sungguh. Bila terjadi kecelakaan karena ada persyaratan yang dilanggar akan menjadi tanggung jawab saya sebagai pelaksana kerja.
+                      </p>
+                    </div>
+
+                    <table style={{ width: '100%', marginTop: '15px', fontSize: '9px', textAlign: 'center' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: '33%', paddingBottom: '45px' }}>Diajukan Oleh (Vendor/Satpam),</td>
+                          <td style={{ width: '33%', paddingBottom: '45px' }}>Ditinjau Oleh (Danru Sektor),</td>
+                          <td style={{ width: '34%', paddingBottom: '45px' }}>Disetujui Oleh (HSE Dept),</td>
+                        </tr>
+                        <tr style={{ fontWeight: 'bold' }}>
+                          <td>(.......................................)</td>
+                          <td>(.......................................)</td>
+                          <td>( Dewi Lestari, S.T. )</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+  </script>
+  
+  <script>
+    // =========================================================================
+    // SKRIP GOOGLE APPS SCRIPT (SERVER SIDE) - SALIN KODE DI BAWAH INI KE Code.gs
+    // =========================================================================
+
+    /*
+    const SPREADSHEET_ID = "1dsgwTqbrGW6d1q5ikguEwQToX5nLP5dozoyFcFDoNXo";  
+    const FOLDER_KARYAWAN = "1iSMjrpd3idvFBRGuyYMrD81xXevlCyfc";  
+    const FOLDER_SATPAM = "1QpjMbz5BNjVxc1xospUsGB-Fg5MhxxCJ";  
+    const FOLDER_PENGAWAS = "1HbCZW9jBLccSUdrTgzP06ZH7z6Y8HMWl";  
+      
+    function doGet() {  
+      return HtmlService.createTemplateFromFile('index')  
+          .evaluate()  
+          .setTitle('E-PTW: Permit To Work System - LRT Jakarta')  
+          .addMetaTag('viewport', 'width=device-width, initial-scale=1')  
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);  
+    }  
+      
+    function getDatabaseData() {  
+      try {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);  
+        initDatabaseIfNeeded(ss);
+        
+        return {  
+          satpam: getSheetValues(ss.getSheetByName("Data Satpam")),  
+          karyawan: getSheetValues(ss.getSheetByName("Data Karyawan")),  
+          ptw: getSheetValues(ss.getSheetByName("Histori Data PTW")),  
+          login: getSheetValues(ss.getSheetByName("Histori Login")),  
+          logout: getSheetValues(ss.getSheetByName("Histori Logout")),  
+          vendor: getSheetValues(ss.getSheetByName("Histori Pekerjaan Vendor"))  
+        };  
+      } catch (err) {
+        throw new Error("Gagal memuatkan database Spreadsheet: " + err.message);
+      }
+    }  
+
+    // HELPER KHUSUS: Mencari letak index kolom (1-based) secara dinamis agar tidak menimpa Lng GPS
+    function getColIndexByHeaderName(sheet, headerName) {
+      if (!sheet) return -1;
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      for (let i = 0; i < headers.length; i++) {
+        if (String(headers[i]).trim().toLowerCase() === String(headerName).trim().toLowerCase()) {
+          return i + 1; // Mengembalikan indeks berbasis 1
+        }
+      }
+      return -1;
+    }
+      
+    function getSheetValues(sheet) {  
+      if (!sheet) return [];  
+      const data = sheet.getDataRange().getValues();  
+      if (data.length <= 1) return [];  
+        
+      const headers = data[0];  
+      const rows = [];  
+        
+      for (let i = 1; i < data.length; i++) {  
+        let rowObj = {};  
+        for (let j = 0; j < headers.length; j++) {  
+          let val = data[i][j];  
+          if (val instanceof Date) {  
+            if (val.getFullYear() === 1899) {
+              const now = new Date();
+              val.setFullYear(now.getFullYear());
+              val.setMonth(now.getMonth());
+              val.setDate(now.getDate());
+              val = Utilities.formatDate(val, Session.getScriptTimeZone(), "HH:mm");
+            } else {
+              val = Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");  
+            }
+          }  
+          // Fallback protektif jika baris header ada yang kosong
+          const headerName = headers[j] ? String(headers[j]).trim() : "Kolom_" + (j + 1);
+          rowObj[headerName] = val;  
+        }  
+        rows.push(rowObj);  
+      }  
+      return rows;  
+    }  
+      
+    function doLogin(email, password, role) {  
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);  
+      initDatabaseIfNeeded(ss);
+
+      const sheetName = role === "Satpam" ? "Data Satpam" : "Data Karyawan";  
+      const sheet = ss.getSheetByName(sheetName);  
+      if (!sheet) throw new Error("Helaian " + sheetName + " tidak dijumpai.");
+
+      const data = getSheetValues(sheet);  
+        
+      const cleanEmail = String(email || "").toLowerCase().trim();  
+      const cleanPassword = String(password || "").trim();  
+      
+      const user = data.find(u => {
+        const dbEmail = String(u.Email || "").toLowerCase().trim();
+        const dbPassword = String(u.Password || "").trim();
+        return dbEmail === cleanEmail && dbPassword === cleanPassword;
+      });
+      
+      if (!user) {  
+        throw new Error("Kredensial salah atau pengguna tidak terdaftar.");  
+      }  
+        
+      const loginSheet = ss.getSheetByName("Histori Login");  
+      if (loginSheet) {  
+        const timestamp = new Date();
+        loginSheet.appendRow([  
+          timestamp,  
+          user.Email,  
+          user.Nama,  
+          role,  
+          user["Lokasi Tugas"] || "HQ Office LRTJ",  
+          user["Lat GPS"] || "",  
+          user["Lng Kordinat"] || user["Lng GPS"] || ""  
+        ]);  
+      }  
+        
+      return user;  
+    }  
+
+    function doLogout(email, role) {
+      try {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        initDatabaseIfNeeded(ss);
+        
+        const sheetName = role === "Satpam" ? "Data Satpam" : "Data Karyawan";
+        const sheet = ss.getSheetByName(sheetName);
+        if (!sheet) return { success: false, error: "Helaian " + sheetName + " tidak dijumpai." };
+        
+        const data = sheet.getDataRange().getValues();
+        const headers = data[0];
+        const emailIdx = headers.indexOf("Email");
+        const namaIdx = headers.indexOf("Nama");
+        const lokasiIdx = headers.indexOf("Lokasi Tugas");
+        const latIdx = headers.indexOf("Lat GPS");
+        const lngIdx = headers.indexOf("Lng Kordinat") !== -1 ? headers.indexOf("Lng Kordinat") : headers.indexOf("Lng GPS");
+        
+        if (emailIdx === -1) return { success: false, error: "Struktur kolom Email tidak lengkap." };
+        
+        const cleanEmail = String(email || "").toLowerCase().trim();
+        let userNama = "";
+        let lokasiTugas = "";
+        let lastLat = "";
+        let lastLng = "";
+        let userFound = false;
+        
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][emailIdx]).toLowerCase().trim() === cleanEmail) {
+            userNama = data[i][namaIdx] || "";
+            lokasiTugas = data[i][lokasiIdx] || "";
+            lastLat = data[i][latIdx] || "";
+            lastLng = data[i][lngIdx] || "";
+            
+            if (latIdx !== -1) sheet.getRange(i + 1, latIdx + 1).setValue("");
+            if (lngIdx !== -1) sheet.getRange(i + 1, lngIdx + 1).setValue("");
+            
+            userFound = true;
+            break;
+          }
+        }
+        
+        if (!userFound) {
+          return { success: false, error: "Akun email tidak ditemukan saat logout." };
+        }
+        
+        const logoutSheet = ss.getSheetByName("Histori Logout");
+        if (logoutSheet) {
+          const timestamp = new Date();
+          logoutSheet.appendRow([
+            timestamp,
+            cleanEmail,
+            userNama,
+            role,
+            lokasiTugas,
+            lastLat,
+            lastLng
+          ]);
+        }
+        
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+
+    function updateUserLocation(email, role, lat, lng) {
+      try {
+        const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+        const sheetName = role === "Satpam" ? "Data Satpam" : "Data Karyawan";
+        const sheet = ss.getSheetByName(sheetName);
+        if (!sheet) return { success: false, error: "Sheet " + sheetName + " tidak ditemukan." };
+        
+        const data = sheet.getDataRange().getValues();
+        const headers = data[0];
+        const emailIdx = headers.indexOf("Email");
+        const latIdx = headers.indexOf("Lat GPS");
+        const lngIdx = headers.indexOf("Lng Kordinat") !== -1 ? headers.indexOf("Lng Kordinat") : headers.indexOf("Lng GPS");
+        
+        if (emailIdx === -1 || latIdx === -1 || lngIdx === -1) {
+          return { success: false, error: "Struktur kolom koordinat GPS tidak lengkap." };
+        }
+        
+        const cleanEmail = String(email || "").toLowerCase().trim();
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][emailIdx]).toLowerCase().trim() === cleanEmail) {
+            sheet.getRange(i + 1, latIdx + 1).setValue(lat);
+            sheet.getRange(i + 1, lngIdx + 1).setValue(lng);
+            return { success: true };
+          }
+        }
+        return { success: false, error: "Akun email tidak ditemukan di database." };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+      
+    function submitPTW(formData, imageBase64, imageName) {  
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);  
+      initDatabaseIfNeeded(ss);
+      
+      const ptwSheet = ss.getSheetByName("Histori Data PTW");  
+      if (!ptwSheet) throw new Error("Helaian Histori Data PTW tidak dijumpai.");
+
+      let imageUrl = "";  
+      if (imageBase64 && imageBase64.indexOf("base64,") !== -1) {  
+        imageUrl = uploadFileToDrive(imageBase64, imageName, FOLDER_PENGAWAS);  
+      }  
+        
+      const idPtw = "PTW-" + Math.floor(100000 + Math.random() * 900000);  
+      const tanggalPengajuan = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");  
+        
+      const rowData = [  
+        idPtw,                           // A (1)
+        formData.ptwNo,                  // B (2)
+        formData.jsaNo,                  // C (3)
+        tanggalPengajuan,                 // D (4)
+        formData.tanggalExpired,           // E (5)
+        formData.jamMulai,                // F (6)
+        formData.jamSelesai,              // G (7)
+        formData.namaPerusahaan,          // H (8)
+        formData.namaPengawas,            // I (9)
+        formData.jumlahPekerja,           // J (10)
+        formData.kelengkapanSafety,       // K (11)
+        formData.jenisPekerjaan,          // L (12)
+        formData.lokasiBekerja,           // M (13)
+        formData.latGps || "-6.1528",     // N (14)
+        formData.lngGps || "106.9114",     // O (15) -- Lng Gps Kolom O (15)
+        imageUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150", // P (16)
+        formData.apdList || "{}",        // Q (17)
+        "Pending"                        // R (18) -- Masa Berlaku / Status Sektor Kolom R (18)
+      ];  
+        
+      ptwSheet.appendRow(rowData);  
+        
+      const vendorSheet = ss.getSheetByName("Histori Pekerjaan Vendor");  
+      if (vendorSheet) {  
+        vendorSheet.appendRow([  
+          idPtw,  
+          formData.namaPerusahaan,  
+          formData.jenisPekerjaan,  
+          formData.lokasiBekerja,  
+          formData.operatorName + " (Satpam)",  
+          "-",  
+          "Diajukan ke Satpam & Menunggu Approval",  
+          new Date()  
+        ]);  
+      }  
+        
+      return { success: true, idPtw: idPtw };  
+    }  
+      
+    function approvePTW(idPtw, approverName, isApproved, catatan) {  
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);  
+      initDatabaseIfNeeded(ss);
+        
+      const ptwSheet = ss.getSheetByName("Histori Data PTW");  
+      if (!ptwSheet) throw new Error("Helaian Histori Data PTW tidak dijumpai.");
+
+      const ptwData = ptwSheet.getDataRange().getValues();  
+      let foundRow = -1;  
+      let ptwDetails = {};  
+        
+      for (let i = 1; i < ptwData.length; i++) {  
+        if (ptwData[i][0] === idPtw) {  
+          foundRow = i + 1;  
+          ptwDetails = {  
+            perusahaan: ptwData[i][7],  
+            jenis: ptwData[i][11],  
+            lokasi: ptwData[i][12]  
+          };  
+          break;  
+        }  
+      }  
+        
+      if (foundRow === -1) throw new Error("Nomor dokumen PTW ID " + idPtw + " tidak dijumpai.");  
+        
+      const newStatus = isApproved ? "Awaiting Satpam Verification" : "Expired";  
+      
+      // PROTEKSI KOLOM R (18): Menemukan secara dinamis nama header "Masa Berlaku" agar Lng Gps (15) tidak tertimpa
+      const statusCol = getColIndexByHeaderName(ptwSheet, "Masa Berlaku");
+      const targetCol = statusCol !== -1 ? statusCol : 18; 
+      
+      ptwSheet.getRange(foundRow, targetCol).setValue(newStatus);  
+      
+      const vendorSheet = ss.getSheetByName("Histori Pekerjaan Vendor");  
+      if (vendorSheet) {  
+        const statusTerakhirText = isApproved  
+          ? "Disahkan Karyawan HSE (Menunggu Verifikasi Kehadiran Fisik oleh Satpam Sektor)"  
+          : "Ditolak Karyawan HSE. Alasan: " + (catatan || "Persyaratan K3 tidak lengkap");
+
+        vendorSheet.appendRow([  
+          idPtw,  
+          ptwDetails.perusahaan || "-",  
+          ptwDetails.jenis || "-",  
+          ptwDetails.lokasi || "-",  
+          "-",  
+          approverName + " (Karyawan)",  
+          statusTerakhirText,  
+          new Date()  
+        ]);  
+      }  
+        
+      return { success: true };  
+    }
+
+    function verifyPTWSector(idPtw, sectorName, verifierName) {
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      initDatabaseIfNeeded(ss);
+      
+      const ptwSheet = ss.getSheetByName("Histori Data PTW");
+      if (!ptwSheet) throw new Error("Helaian Histori Data PTW tidak dijumpai.");
+      
+      const ptwData = ptwSheet.getDataRange().getValues();
+      let foundRow = -1;
+      let currentStatus = "";
+      let ptwDetails = {};
+      
+      // PROTEKSI KOLOM R (18): Menemukan secara dinamis indeks kolom "Masa Berlaku"
+      const statusCol = getColIndexByHeaderName(ptwSheet, "Masa Berlaku");
+      const targetCol = statusCol !== -1 ? statusCol : 18;
+      
+      for (let i = 1; i < ptwData.length; i++) {
+        if (ptwData[i][0] === idPtw) {
+          foundRow = i + 1;
+          currentStatus = String(ptwData[i][targetCol - 1] || "Pending");
+          ptwDetails = {
+            perusahaan: ptwData[i][7],
+            jenis: ptwData[i][11],
+            lokasi: ptwData[i][12]
+          };
+          break;
+        }
+      }
+      
+      if (foundRow === -1) throw new Error("Nomor dokumen PTW ID " + idPtw + " tidak dijumpai.");
+      
+      let baseStatus = "Work In Progress";
+      let verifiedStations = [];
+      let completedStations = [];
+      
+      const parts = currentStatus.split(" | ");
+      parts.forEach(part => {
+        if (part.startsWith("Verified: ")) {
+          verifiedStations = part.replace("Verified: ", "").split(",").map(s => s.trim()).filter(Boolean);
+        } else if (part.startsWith("Completed: ")) {
+          completedStations = part.replace("Completed: ", "").split(",").map(s => s.trim()).filter(Boolean);
+        }
+      });
+      
+      const cleanSector = String(sectorName).trim();
+      if (verifiedStations.indexOf(cleanSector) === -1) {
+        verifiedStations.push(cleanSector);
+      }
+      
+      let newStatus = baseStatus;
+      if (verifiedStations.length > 0) newStatus += " | Verified: " + verifiedStations.join(", ");
+      if (completedStations.length > 0) newStatus += " | Completed: " + completedStations.join(", ");
+      
+      ptwSheet.getRange(foundRow, targetCol).setValue(newStatus);
+      
+      const vendorSheet = ss.getSheetByName("Histori Pekerjaan Vendor");
+      if (vendorSheet) {
+        vendorSheet.appendRow([
+          idPtw,
+          ptwDetails.perusahaan || "-",
+          ptwDetails.jenis || "-",
+          ptwDetails.lokasi || "-",
+          verifierName + " (Satpam)",
+          "-",
+          "Pekerjaan Dimulai - Fisik Vendor Diverifikasi di Sektor: " + cleanSector,
+          new Date()
+        ]);
+      }
+      
+      return { success: true, updatedStatus: newStatus };
+    }
+
+    function completePTWSector(idPtw, sectorName, completerName) {
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      initDatabaseIfNeeded(ss);
+      
+      const ptwSheet = ss.getSheetByName("Histori Data PTW");
+      if (!ptwSheet) throw new Error("Helaian Histori Data PTW tidak dijumpai.");
+      
+      const ptwData = ptwSheet.getDataRange().getValues();
+      let foundRow = -1;
+      let currentStatus = "";
+      let ptwDetails = {};
+      
+      // PROTEKSI KOLOM R (18): Menemukan secara dinamis indeks kolom "Masa Berlaku"
+      const statusCol = getColIndexByHeaderName(ptwSheet, "Masa Berlaku");
+      const targetCol = statusCol !== -1 ? statusCol : 18;
+      
+      for (let i = 1; i < ptwData.length; i++) {
+        if (ptwData[i][0] === idPtw) {
+          foundRow = i + 1;
+          currentStatus = String(ptwData[i][targetCol - 1] || "Pending");
+          ptwDetails = {
+            perusahaan: ptwData[i][7],
+            jenis: ptwData[i][11],
+            lokasi: String(ptwData[i][12] || "").split(",").map(s => s.trim()).filter(Boolean)
+          };
+          break;
+        }
+      }
+      
+      if (foundRow === -1) throw new Error("Nomor dokumen PTW ID " + idPtw + " tidak dijumpai.");
+      
+      let baseStatus = "Work In Progress";
+      let verifiedStations = [];
+      let completedStations = [];
+      
+      const parts = currentStatus.split(" | ");
+      parts.forEach(part => {
+        if (part.startsWith("Verified: ")) {
+          verifiedStations = part.replace("Verified: ", "").split(",").map(s => s.trim()).filter(Boolean);
+        } else if (part.startsWith("Completed: ")) {
+          completedStations = part.replace("Completed: ", "").split(",").map(s => s.trim()).filter(Boolean);
+        }
+      });
+      
+      const cleanSector = String(sectorName).trim();
+      if (completedStations.indexOf(cleanSector) === -1) {
+        completedStations.push(cleanSector);
+      }
+      
+      const allCompleted = ptwDetails.lokasi.every(loc => 
+        completedStations.some(comp => comp.toLowerCase().trim() === loc.toLowerCase().trim())
+      );
+      
+      if (allCompleted) {
+        baseStatus = "Expired"; 
+      }
+      
+      let newStatus = baseStatus;
+      if (verifiedStations.length > 0) newStatus += " | Verified: " + verifiedStations.join(", ");
+      if (completedStations.length > 0) newStatus += " | Completed: " + completedStations.join(", ");
+      
+      ptwSheet.getRange(foundRow, targetCol).setValue(newStatus);
+      
+      const vendorSheet = ss.getSheetByName("Histori Pekerjaan Vendor");
+      if (vendorSheet) {
+        vendorSheet.appendRow([
+          idPtw,
+          ptwDetails.perusahaan || "-",
+          ptwDetails.jenis || "-",
+          ptwDetails.lokasi.join(", ") || "-",
+          "-",
+          completerName,
+          "Pekerjaan Diakhiri & Selesai di Sektor: " + cleanSector,
+          new Date()
+        ]);
+      }
+      
+      return { success: true, updatedStatus: newStatus };
+    }
+      
+    function uploadFileToDrive(base64Data, fileName, folderId) {  
+      try {  
+        const folder = DriveApp.getFolderById(folderId);  
+        const contentType = base64Data.substring(5, base64Data.indexOf(';base64'));  
+        const base64Clean = base64Data.substring(base64Data.indexOf(';base64,') + 8);  
+        const data = Utilities.base64Decode(base64Clean);  
+        const blob = Utilities.newBlob(data, contentType, fileName);  
+        const file = folder.createFile(blob);  
+        
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);  
+        return file.getUrl();  
+      } catch (e) {  
+        return "Error Upload: " + e.toString();  
+      }  
+    }
+
+    function initDatabaseIfNeeded(ss) {
+      let sheetSatpam = ss.getSheetByName("Data Satpam");
+      if (!sheetSatpam) {
+        sheetSatpam = ss.insertSheet("Data Satpam");
+      }
+      if (sheetSatpam.getLastRow() <= 1) {
+        sheetSatpam.clear();
+        sheetSatpam.appendRow(["Email", "Password", "Nama", "NIK KTP", "Jabatan", "Lokasi Tugas", "Foto Satpam", "Lat GPS", "Lng Kordinat"]);
+        sheetSatpam.appendRow(["satpam.pos1@company.com", "satpam123", "Bambang Hariyanto", "3216012304890001", "Komandan Regu A", "Depo MCC", "https://images.unsplash.com/photo-1600486913747-55e5470d6f40?auto=format&fit=crop&w=150&h=150&q=80", "-6.15500254", "106.91541503"]);
+        sheetSatpam.appendRow(["satpam.pos2@company.com", "satpam123", "Slamet Prasetyo", "3216011209910003", "Anggota Regu B", "Stasiun Pegangsaan Dua", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80", "-6.15694188", "106.91420061"]);
+      }
+
+      let sheetKaryawan = ss.getSheetByName("Data Karyawan");
+      if (!sheetKaryawan) {
+        sheetKaryawan = ss.insertSheet("Data Karyawan");
+      }
+      if (sheetKaryawan.getLastRow() <= 1) {
+        sheetKaryawan.clear();
+        sheetKaryawan.appendRow(["Email", "Password", "Nama", "NIK KTP", "Jabatan", "Lokasi Tugas", "Foto Karyawan", "Lat GPS", "Lng Kordinat"]);
+        sheetKaryawan.appendRow(["hse.karyawan@company.com", "karyawan123", "Dewi Lestari, S.T.", "3216010505850005", "HSE Specialist Coordinator", "Depo MCC - Ruang HSE", "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&h=150&q=80", "-6.15500254", "106.91541503"]);
+      }
+
+      let sheetPTW = ss.getSheetByName("Histori Data PTW");
+      if (!sheetPTW) {
+        sheetPTW = ss.insertSheet("Histori Data PTW");
+      }
+      
+      if (sheetPTW.getLastRow() === 0) {
+        // Kolom 15 (O) = Lng Gps, Kolom 18 (R) = Masa Berlaku. KEDUA KOLOM INI BERBEDA DAN TIDAK AKAN SALING MENIMPA!
+        sheetPTW.appendRow(["ID PTW", "Permit To Work No", "JSA No", "Tanggal Pengajuan", "Tanggal Expired", "Jam Mulai Pekerjaan", "Jam Selesai Pekerjaan", "Nama Perusahaan", "Nama Pengawas", "Jumlah Pekerja", "Kelengkapan Safety", "Jenis Pekerjaan", "Lokasi Bekerja", "Lat Gps", "Lng Gps", "Foto Pengawas", "Detail APD", "Masa Berlaku"]);
+        sheetPTW.appendRow(["PTW-20260711-001", "PTW/LRTJ/001/2026", "JSA/LRTJ/001/2026", "2026-07-11", "2026-07-11", "18:00", "23:00", "PT. Global Konstruksi Utama", "Budi Santoso", 8, "Helm, Sepatu Safety, Rompi", "Perawatan Jalur Rel & Wesel", "Stasiun Pegangsaan Dua", "-6.1528", "106.9114", "", "{}", "Work In Progress"]);
+      } else {
+        // Fitur Auto-Heal: Memastikan header kolom R wajib bernama "Masa Berlaku" jika sebelumnya terhapus/kosong
+        const headerRange = sheetPTW.getRange(1, 1, 1, 18);
+        const headers = headerRange.getValues()[0];
+        let changed = false;
+        if (!headers[17] || String(headers[17]).trim() === "") {
+          sheetPTW.getRange(1, 18).setValue("Masa Berlaku");
+          changed = true;
+        }
+        if (!headers[13] || String(headers[13]).trim() === "") {
+          sheetPTW.getRange(1, 14).setValue("Lat Gps");
+          changed = true;
+        }
+        if (!headers[14] || String(headers[14]).trim() === "") {
+          sheetPTW.getRange(1, 15).setValue("Lng Gps");
+          changed = true;
+        }
+      }
+
+      let sheetLogin = ss.getSheetByName("Histori Login");
+      if (!sheetLogin) {
+        sheetLogin = ss.insertSheet("Histori Login");
+      }
+      if (sheetLogin.getLastRow() === 0) {
+        sheetLogin.appendRow(["Timestamp", "Email", "Nama", "Role", "Lokasi Tugas", "Lat GPS", "Lng GPS"]);
+      }
+
+      let sheetLogout = ss.getSheetByName("Histori Logout");
+      if (!sheetLogout) {
+        sheetLogout = ss.insertSheet("Histori Logout");
+      }
+      if (sheetLogout.getLastRow() === 0) {
+        sheetLogout.appendRow(["Timestamp", "Email", "Nama", "Role", "Lokasi Tugas", "Lat GPS", "Lng GPS"]);
+      }
+
+      let sheetVendor = ss.getSheetByName("Histori Pekerjaan Vendor");
+      if (!sheetVendor) {
+        sheetVendor = ss.insertSheet("Histori Pekerjaan Vendor");
+      }
+      if (sheetVendor.getLastRow() === 0) {
+        sheetVendor.appendRow([
+          "ID PTW",
+          "Nama Perusahaan",
+          "Jenis Pekerjaan",
+          "Lokasi Bekerja",
+          "Petugas Verifikator Sektor",
+          "HSE Specialist Approver",
+          "Status Aktivitas Lapangan",
+          "Timestamp"
+        ]);
+      }
+    }
+    */
+  </script>
+</body>
+</html>
