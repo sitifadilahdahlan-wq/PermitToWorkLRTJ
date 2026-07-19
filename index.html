@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-PTW LRT Jakarta - Real-Time Dashboard & Document Center</title>
+  <title>E-PTW LRT Jakarta - Real-Time Dashboard, Document Center & QR Scanner</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -20,6 +20,9 @@
 
   <!-- HTML2PDF & html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- HTML5-QRCode Scanner Library (For Satpam Camera QR Scanning) -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <!-- React & Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -179,15 +182,15 @@
 </head>
 <body class="bg-slate-50 text-slate-900 font-serif antialiased selection:bg-red-200">
 
+  <!-- Main Mount Root -->
   <div id="root"></div>
 
   <script type="text/babel">
   const { useState, useEffect, useRef, useMemo } = React;
 
   // =========================================================================
-  // KONFIGURASI LINK DEPLOY GOOGLE APPS SCRIPT WEB APP (DARI GITHUB)
+  // KONFIGURASI LINK DEPLOY GOOGLE APPS SCRIPT WEB APP (DARI GITHUB / GAS)
   // =========================================================================
-  // MASUKKAN URL DEPLOY WEB APP GAS ANDA DI BAWAH INI UNTUK PENGINTEGRASIAN:
   const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwoyzFmncS1vFPDWWZssXxUwIJXehDsOq-11YmIL6S94yHcKwRSPrk8H7z6oExVbR2yNw/exec"; 
 
   const FALLBACK_STASIUN = [
@@ -206,7 +209,6 @@
     return parseFloat(cleanStr);
   };
 
-  // Helper untuk melakukan Fetch ke GAS Web App jika tidak berjalan di GAS Container
   const executeGasFetch = async (action, bodyPayload = {}) => {
     if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("1dsgwTqbrGW6d1q5ikguEwQToX5nLP5dozoyFcFDoNXo")) {
       throw new Error("Pemberitahuan: Silakan pasang Web App URL yang valid di variabel GAS_WEB_APP_URL.");
@@ -231,12 +233,22 @@
     const hasExternalApi = GAS_WEB_APP_URL && !GAS_WEB_APP_URL.includes("1dsgwTqbrGW6d1q5ikguEwQToX5nLP5dozoyFcFDoNXo");
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [role, setRole] = useState("satpam"); // "satpam" atau "karyawan"
+    const [role, setRole] = useState("satpam"); // "satpam", "karyawan", atau "vendor"
     const [currentUser, setCurrentUser] = useState(null);
     const [loginEmail, setLoginEmail] = useState("");
     const [loginPassword, setLoginPassword] = useState("");
     const [loginError, setLoginError] = useState("");
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+    // Registrasi Vendor States
+    const [isRegisterMode, setIsRegisterMode] = useState(false);
+    const [regNamaUser, setRegNamaUser] = useState("");
+    const [regNamaPerusahaan, setRegNamaPerusahaan] = useState("");
+    const [regEmail, setRegEmail] = useState("");
+    const [regPassword, setRegPassword] = useState("");
+    const [regConfirmPassword, setRegConfirmPassword] = useState("");
+    const [regError, setRegError] = useState("");
+    const [isRegistering, setIsRegistering] = useState(false);
     
     const [muted, setMuted] = useState(false);
     const [realTimeClock, setRealTimeClock] = useState(new Date());
@@ -265,6 +277,14 @@
     const [actionQueue, setActionQueue] = useState([]);
     const [showActionPopup, setShowActionPopup] = useState(false);
     const [previewPdfPtw, setPreviewPdfPtw] = useState(null);
+    const [vendorSuccessSubmit, setVendorSuccessSubmit] = useState(null);
+
+    // QR SCANNING STATES (For Satpam workflow)
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+    const [scannedResult, setScannedResult] = useState(null);
+    const [manualPtwIdInput, setManualPtwIdInput] = useState("");
+    const [scanErrorMsg, setScanErrorMsg] = useState("");
+    const html5QrCodeRef = useRef(null);
 
     // Form states
     const [formPtwNo, setFormPtwNo] = useState("");
@@ -382,7 +402,7 @@
     };
 
     const getPtwStatusForUser = (ptw) => {
-      if (role === "karyawan") return ptw.status;
+      if (role === "karyawan" || role === "vendor") return ptw.status;
       const userLocation = currentUser?.["Lokasi Tugas"];
       if (!userLocation) return ptw.status;
       return getStationStatusForPtw(ptw, userLocation);
@@ -414,7 +434,6 @@
       return () => clearInterval(timer);
     }, []);
 
-    // Database Loader (Adaptive - supports GAS, GitHub Fetch API & Offline Demo)
     const processDatabaseResponse = (data) => {
       if (data) {
         if (data.ptw) {
@@ -476,7 +495,6 @@
 
     const fetchDataFromSheet = () => {
       if (isGasContainer) {
-        // Lingkungan Google Apps Script
         google.script.run
           .withSuccessHandler(processDatabaseResponse)
           .withFailureHandler((err) => {
@@ -484,7 +502,6 @@
           })
           .getDatabaseData();
       } else if (hasExternalApi) {
-        // Lingkungan GitHub (Akses Fetch API)
         fetch(`${GAS_WEB_APP_URL}?action=getDatabaseData`)
           .then(res => res.json())
           .then(res => {
@@ -499,12 +516,11 @@
             showToast("Gagal memuat data dari Web App GAS.");
           });
       } else {
-        // Lingkungan Demo Offline (Fallback)
         const dummyHistory = [
           {
             id: "PTW-832912",
             ptwNo: "832/PTW/LRTJ/D/2026-1",
-            jsaNo: "832/PTW/LRTJ/D/2026-1",
+            jsaNo: "JSA/LRTJ/VND/2026-12",
             vendor: "PT Waskita - Nindya - LRS KSO",
             penanggungJawab: "Erwin Martoras",
             shePelaksana: "Disma Krisntanto S.",
@@ -513,9 +529,9 @@
             personelList: "Ginanjar, Jajang, Muarip, Agles, Gangsar",
             jenisPekerjaan: "* Mobilisasi perangkat Upgrade Walldisplay (Server room Lt.6 MCC)\n* Pengetesan ulang autorecloser TPSS Velodrome",
             lokasi: ["Depo MCC", "Stasiun Pegangsaan Dua", "Stasiun Velodrome"],
-            tanggalMulai: "2026-07-06",
+            tanggalMulai: "2026-07-12",
             jamMulai: "23:00",
-            tanggalSelesai: "2026-07-20",
+            tanggalSelesai: "2026-07-28",
             jamSelesai: "04:00",
             jumlahPekerja: 29,
             status: "Work In Progress",
@@ -577,7 +593,7 @@
 
     // Notification sound alarm logic
     useEffect(() => {
-      if (!isLoggedIn || !currentUser) return;
+      if (!isLoggedIn || !currentUser || role === "vendor") return;
 
       let filteredAlerts = [];
       if (role === "karyawan") {
@@ -629,7 +645,7 @@
     };
 
     useEffect(() => {
-      if (showActionPopup && isLoggedIn && !muted) {
+      if (showActionPopup && isLoggedIn && !muted && role !== "vendor") {
         if (!alarmIntervalRef.current) {
           triggerAlarmPing();
           alarmIntervalRef.current = setInterval(triggerAlarmPing, 5000);
@@ -646,24 +662,27 @@
           alarmIntervalRef.current = null;
         }
       };
-    }, [showActionPopup, muted, isLoggedIn]);
+    }, [showActionPopup, muted, isLoggedIn, role]);
 
-    // Handle Login (Supports GAS direct login, GAS HTTP API login, and Demo default)
+    // Handle Login
     const handleLogin = (e) => {
       e.preventDefault();
       setLoginError("");
       setIsLoggingIn(true);
 
-      const resolvedRoleName = role === "satpam" ? "Satpam" : "Karyawan";
+      const resolvedRoleName = role === "satpam" ? "Satpam" : role === "karyawan" ? "Karyawan" : "Vendor";
 
       if (isGasContainer) {
         google.script.run
           .withSuccessHandler((user) => {
             setIsLoggingIn(false);
-            if (user && user.Nama) {
+            if (user && (user.Nama || user["Nama User"])) {
+              if (role === "vendor") {
+                initializeVendorForm(user["Nama User"] || "User Vendor", user["Nama Perusahaan"] || "Perusahaan");
+              }
               setCurrentUser(user);
               setIsLoggedIn(true);
-              showToast(`Selamat datang, ${user.Nama}`);
+              showToast(`Selamat datang, ${user.Nama || user["Nama User"]}`);
             } else {
               setLoginError("Email atau password Anda salah.");
             }
@@ -677,10 +696,13 @@
         executeGasFetch("doLogin", { email: loginEmail, password: loginPassword, role: resolvedRoleName })
           .then(user => {
             setIsLoggingIn(false);
-            if (user && user.Nama) {
+            if (user && (user.Nama || user["Nama User"])) {
+              if (role === "vendor") {
+                initializeVendorForm(user.Nama || "User Vendor", user.Perusahaan || "Perusahaan");
+              }
               setCurrentUser(user);
               setIsLoggedIn(true);
-              showToast(`Selamat datang (GitHub Cloud), ${user.Nama}`);
+              showToast(`Selamat datang, ${user.Nama || user["Nama User"]}`);
             } else {
               setLoginError("Email / password salah atau tidak terdaftar.");
             }
@@ -690,19 +712,123 @@
             setLoginError("Gagal terhubung ke GAS: " + err.message);
           });
       } else {
-        // Demo offline fallback
         setIsLoggingIn(false);
         const dummyUser = {
-          Nama: role === "satpam" ? "Bambang Hariyanto (Danru)" : "Dewi Lestari, S.T. (HSE)",
+          Nama: role === "satpam" ? "Bambang Hariyanto (Danru)" : role === "karyawan" ? "Dewi Lestari, S.T. (HSE)" : "Ahmad Subarjo (Vendor)",
           Email: loginEmail,
-          "Lokasi Tugas": role === "satpam" ? "Depo MCC" : "Stasiun Boulevard Utara",
+          Perusahaan: role === "vendor" ? "PT Sinar Jaya Abadi" : "",
+          "Lokasi Tugas": role === "satpam" ? "Depo MCC" : role === "karyawan" ? "Stasiun Boulevard Utara" : "Luar Lintasan",
           "Lat GPS": "-6.15673058",
           "Lng Kordinat": "106.91530773"
         };
+        if (role === "vendor") {
+          initializeVendorForm("Ahmad Subarjo", "PT Sinar Jaya Abadi");
+        }
         setCurrentUser(dummyUser);
         setIsLoggedIn(true);
         showToast("Masuk sebagai Demo Mode.");
       }
+    };
+
+    // Handle Vendor Registration
+    const handleRegisterVendor = (e) => {
+      e.preventDefault();
+      setRegError("");
+
+      if (regPassword !== regConfirmPassword) {
+        setRegError("Konfirmasi sandi tidak sesuai.");
+        return;
+      }
+
+      setIsRegistering(true);
+
+      if (isGasContainer) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            setIsRegistering(false);
+            showToast("Registrasi berhasil! Silakan login.");
+            setIsRegisterMode(false);
+            setLoginEmail(regEmail);
+            setLoginPassword(regPassword);
+          })
+          .withFailureHandler((err) => {
+            setIsRegistering(false);
+            setRegError(err.message || "Gagal melakukan registrasi.");
+          })
+          .doRegisterVendor(regNamaUser, regNamaPerusahaan, regEmail, regPassword);
+      } else if (hasExternalApi) {
+        executeGasFetch("doRegisterVendor", {
+          namaUser: regNamaUser,
+          namaPerusahaan: regNamaPerusahaan,
+          email: regEmail,
+          password: regPassword
+        })
+          .then(() => {
+            setIsRegistering(false);
+            showToast("Registrasi Berhasil! Akun siap digunakan.");
+            setIsRegisterMode(false);
+            setLoginEmail(regEmail);
+            setLoginPassword(regPassword);
+          })
+          .catch(err => {
+            setIsRegistering(false);
+            setRegError(err.message || "Email sudah terdaftar.");
+          });
+      } else {
+        setTimeout(() => {
+          setIsRegistering(false);
+          showToast("[Demo] Registrasi sukses! Silakan login.");
+          setIsRegisterMode(false);
+          setLoginEmail(regEmail);
+          setLoginPassword(regPassword);
+        }, 1000);
+      }
+    };
+
+    // Fungsi otomatis untuk menginisialisasi value default PTW bagi Vendor yang login
+    const initializeVendorForm = (namaUser, namaPerusahaan) => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+
+      const currentDateString = `${year}-${month}-${day}`;
+      const currentTimeString = `${hours}:${minutes}`;
+
+      setFormPtwNo(`PTW/LRTJ/${year}/${Math.floor(1000 + Math.random() * 9000)}`);
+      setFormJsaNo(`JSA/LRTJ/VND/${year}/${Math.floor(100+Math.random()*900)}`);
+      setFormTglMulai(currentDateString);
+      setFormJamMulai(currentTimeString);
+      setFormTglSelesai(currentDateString);
+      const endHours = String((now.getHours() + 3) % 24).padStart(2, '0');
+      setFormJamSelesai(`${endHours}:${minutes}`);
+
+      setFormVendor(namaPerusahaan);
+      setFormPenanggungJawab(namaUser);
+      setFormShePelaksana("");
+      setFormPemberiKerja("");
+      setFormPengawasPemberiKerja("");
+      setFormPersonelList("");
+      setFormPekerjaan("");
+      setFormLokasi([]);
+      setFormPekerjaCount(2);
+      setFormPotensiApi("Tidak");
+      setFormApdList({
+        "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true, "Ear Muff": false,
+        "Ear Plug": false, "Hair Protection": false, "Face Protector": false, "Welding Mask": false,
+        "Apron": false, "Welding Clothes": false, "Protective Clothing": false, "Leather Gloves": false,
+        "Gas Mask": false, "Dust Mask": false, "Breathing Apparatus": false, "Nitrile Gloves": false,
+        "Cotton Gloves": false, "Full Body Harness": false, "Goggles": false, "Safety Glasses": false,
+        "Lain-lain": ""
+      });
+      setFormIsolasiBahanKimia("Tidak");
+      setFormIsolasiMsds("Tidak");
+      setFormLotoProsedur("Tidak");
+      setFormLotoListrik("Tidak");
+      setFormLotoMekanis("Tidak");
+      setFormLotoHidrolik("Tidak");
     };
 
     const handleLogout = () => {
@@ -713,6 +839,7 @@
       setShowActionPopup(false);
       setUserCoords(null);
       hasCenteredOnUserRef.current = false;
+      setVendorSuccessSubmit(null);
       showToast("Berhasil keluar.");
     };
 
@@ -761,14 +888,18 @@
         lotoListrik: formLotoListrik,
         lotoMekanis: formLotoMekanis,
         lotoHidrolik: formLotoHidrolik,
-        operatorName: currentUser ? currentUser.Nama : "Satpam"
+        operatorName: currentUser ? (currentUser.Nama || currentUser["Nama User"]) : "Vendor Pelaksana"
       };
 
       if (isGasContainer) {
         google.script.run
           .withSuccessHandler((result) => {
             showToast(`Selesai! Permit ${result.idPtw} berhasil dikirim.`);
-            fetchDataFromSheet();
+            if (role === "vendor") {
+              setVendorSuccessSubmit(result.idPtw);
+            } else {
+              fetchDataFromSheet();
+            }
           })
           .withFailureHandler((err) => {
             showToast("Gagal menyimpan ke Sheet: " + err.message);
@@ -778,14 +909,19 @@
         executeGasFetch("submitPTW", { formData: ptwPayload, imageBase64: "", imageName: "" })
           .then(result => {
             showToast(`Selesai! Permit ${result.idPtw} sukses didaftarkan (Cloud).`);
-            fetchDataFromSheet();
+            if (role === "vendor") {
+              setVendorSuccessSubmit(result.idPtw);
+            } else {
+              fetchDataFromSheet();
+            }
           })
           .catch(err => {
             showToast("Gagal mengirim data PTW: " + err.message);
           });
       } else {
+        const generatedId = "PTW-" + Math.floor(100000 + Math.random() * 900000);
         const localNew = {
-          id: "PTW-" + Math.floor(100000 + Math.random() * 900000),
+          id: generatedId,
           ptwNo: formPtwNo,
           jsaNo: formJsaNo,
           vendor: formVendor,
@@ -815,12 +951,14 @@
         };
         setPtwDB([localNew, ...ptwDB]);
         showToast(`[Demo] Permit ${localNew.id} sukses diajukan.`);
+        if (role === "vendor") {
+          setVendorSuccessSubmit(generatedId);
+        }
       }
 
       setIsCreateModalOpen(false);
     };
 
-    // Handling HSE Approvals
     const handleHseApprove = (id) => {
       const approver = currentUser ? currentUser.Nama : "HSE Coordinator";
       if (isGasContainer) {
@@ -875,7 +1013,6 @@
       }
     };
 
-    // Handling physical verification by Satpam
     const handleSatpamVerify = (id) => {
       const userLocation = currentUser?.["Lokasi Tugas"];
       if (!userLocation) return;
@@ -919,7 +1056,6 @@
       }
     };
 
-    // Terminating jobs
     const handleForceComplete = (id, stationToComplete) => {
       const targetStation = stationToComplete || currentUser?.["Lokasi Tugas"];
       if (!targetStation) return;
@@ -987,49 +1123,9 @@
     };
 
     const openCreateModal = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-
-      const currentDateString = `${year}-${month}-${day}`;
-      const currentTimeString = `${hours}:${minutes}`;
-
-      setFormPtwNo(`832/PTW/LRTJ/D/${year}-1`);
-      setFormJsaNo(`832/PTW/LRTJ/D/${year}-1`);
-      setFormTglMulai(currentDateString);
-      setFormJamMulai(currentTimeString);
-      setFormTglSelesai(currentDateString);
-      const endHours = String((now.getHours() + 3) % 24).padStart(2, '0');
-      setFormJamSelesai(`${endHours}:${minutes}`);
-
-      setFormVendor("PT Waskita - Nindya - LRS KSO");
-      setFormPenanggungJawab("Erwin Martoras");
-      setFormShePelaksana("Disma Krisntanto S.");
-      setFormPemberiKerja("Muhammad fajar Mahendra");
-      setFormPengawasPemberiKerja("Deni Yusfiardi");
-      setFormPersonelList("Ginanjar, Jajang, Muarip, Agles, Gangsar");
-      setFormPekerjaan("* Mobilisasi perangkat Upgrade Walldisplay (Server room Lt.6 MCC)\n* Pengetesan ulang autorecloser TPSS Velodrome");
-      setFormLokasi([]);
-      setFormPekerjaCount(29);
-      setFormPotensiApi("Ada");
-      setFormApdList({
-        "Safety Helmet": true, "Safety Vest": true, "Safety Shoes": true, "Ear Muff": false,
-        "Ear Plug": false, "Hair Protection": false, "Face Protector": false, "Welding Mask": true,
-        "Apron": false, "Welding Clothes": false, "Protective Clothing": false, "Leather Gloves": false,
-        "Gas Mask": false, "Dust Mask": true, "Breathing Apparatus": false, "Nitrile Gloves": false,
-        "Cotton Gloves": false, "Full Body Harness": false, "Goggles": false, "Safety Glasses": true,
-        "Lain-lain": ""
-      });
-      setFormIsolasiBahanKimia("Tidak");
-      setFormIsolasiMsds("Tidak");
-      setFormLotoProsedur("Tidak");
-      setFormLotoListrik("Tidak");
-      setFormLotoMekanis("Tidak");
-      setFormLotoHidrolik("Ya");
-
+      if (currentUser) {
+        initializeVendorForm(currentUser.Nama || "User Vendor", currentUser.Perusahaan || "Perusahaan");
+      }
       setIsCreateModalOpen(true);
     };
 
@@ -1039,7 +1135,7 @@
       
       const opt = {
         margin:       [10, 10, 10, 10],
-        filename:     `Permit_Work_LRTJ_${ptw.id}.pdf`,
+        filename:      `Permit_Work_LRTJ_${ptw.id}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1050,9 +1146,27 @@
       });
     };
 
+    // New Download handler for the Vendor's dynamic E-Tiket PDF
+    const handleDownloadETicketPdf = (ptwId) => {
+      const element = document.getElementById(`eticket-pdf-target`);
+      if (!element) return;
+      
+      const opt = {
+        margin:       [12, 12, 12, 12],
+        filename:      `E-Tiket_PTW_${ptwId}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      html2pdf().from(element).set(opt).save().then(() => {
+        showToast("E-Tiket PDF berhasil diunduh.");
+      });
+    };
+
     // Render Leaflet Map
     useEffect(() => {
-      if (!isLoggedIn || currentTab !== "dashboard") {
+      if (!isLoggedIn || currentTab !== "dashboard" || role === "vendor") {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.remove();
           mapInstanceRef.current = null;
@@ -1163,21 +1277,34 @@
           mapInstanceRef.current = null;
         }
       };
-    }, [isLoggedIn, ptwDB, listLokasiTugas, ptwStationStates, userCoords, currentTab]);
+    }, [isLoggedIn, ptwDB, listLokasiTugas, ptwStationStates, userCoords, currentTab, role]);
 
-    // Render Realtime Charts
+    // GENERATING: Vendor activity counts over continuous last 7 calendar days
     useEffect(() => {
-      if (!isLoggedIn || currentTab !== "dashboard") return;
+      if (!isLoggedIn || currentTab !== "dashboard" || role === "vendor") return;
 
-      const dateWorkerMap = {};
-      visiblePtwDB.forEach(ptw => {
-        const resolvedStatus = getPtwStatusForUser(ptw);
-        if (resolvedStatus !== "Expired") {
-          dateWorkerMap[ptw.tanggalMulai] = (dateWorkerMap[ptw.tanggalMulai] || 0) + ptw.jumlahPekerja;
-        }
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        last7Days.push(`${yyyy}-${mm}-${dd}`);
+      }
+
+      const vendorActivitiesCount = last7Days.map(dateStr => {
+        return visiblePtwDB.filter(ptw => {
+          const resolvedStatus = getPtwStatusForUser(ptw);
+          if (resolvedStatus === "Expired") return false;
+          
+          const start = ptw.tanggalMulai;
+          const end = ptw.tanggalSelesai || ptw.tanggalMulai;
+          return dateStr >= start && dateStr <= end;
+        }).length;
       });
-      const datesSorted = Object.keys(dateWorkerMap).sort().slice(-7);
-      const workersCount = datesSorted.map(d => dateWorkerMap[d]);
+
+      const datesFormatted = last7Days.map(d => d.split('-').reverse().slice(0, 2).join('/'));
 
       const counts = {
         wip: visiblePtwDB.filter(p => getPtwStatusForUser(p) === "Work In Progress").length,
@@ -1188,30 +1315,58 @@
         expired: visiblePtwDB.filter(p => getPtwStatusForUser(p) === "Expired").length
       };
 
+      // Chart 1: Real-Time Vendor Activities (7 Days Trend)
       if (chartPekerjaRef.current) {
         if (chartPekerjaRef.current.chart) chartPekerjaRef.current.chart.destroy();
         const ctx1 = chartPekerjaRef.current.getContext('2d');
         chartPekerjaRef.current.chart = new Chart(ctx1, {
           type: 'bar',
           data: {
-            labels: datesSorted.map(d => d.split('-').reverse().slice(0, 2).join('/')),
+            labels: datesFormatted,
             datasets: [{
-              label: 'Pekerja Sektor',
-              data: workersCount,
-              backgroundColor: 'rgba(59, 130, 246, 0.85)',
-              borderColor: 'rgb(37, 99, 235)',
-              borderWidth: 1,
-              borderRadius: 4
+              label: 'Kegiatan Vendor',
+              data: vendorActivitiesCount,
+              backgroundColor: 'rgba(239, 68, 68, 0.85)',
+              borderColor: 'rgb(220, 38, 38)',
+              borderWidth: 1.5,
+              borderRadius: 6
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
+            plugins: { 
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return ` ${context.parsed.y} Kegiatan Aktif`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  precision: 0
+                },
+                grid: {
+                  color: 'rgba(226, 232, 240, 0.6)'
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
           }
         });
       }
 
+      // Chart 2: Document Status Analysis
       if (chartStatusRef.current) {
         if (chartStatusRef.current.chart) chartStatusRef.current.chart.destroy();
         const ctx2 = chartStatusRef.current.getContext('2d');
@@ -1230,11 +1385,17 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 }
+              }
+            }
           }
         });
       }
-    }, [isLoggedIn, visiblePtwDB, ptwStationStates, currentTab]);
+    }, [isLoggedIn, visiblePtwDB, ptwStationStates, currentTab, role]);
 
     const wipCount = visiblePtwDB.filter(p => getPtwStatusForUser(p) === "Work In Progress").length;
     const pendingTotalCount = visiblePtwDB.filter(p => {
@@ -1257,6 +1418,80 @@
       return `${dayName}, ${day} ${monthName} ${year} — ${hh}:${mm}:${ss} WIB`;
     };
 
+    // QR SCAN & PARSE VERIFICATION SYSTEM (For Satpam check-in/out)
+    const startQrScanner = () => {
+      setIsQrScannerOpen(true);
+      setScannedResult(null);
+      setScanErrorMsg("");
+      setManualPtwIdInput("");
+
+      // Allow camera loading with small latency
+      setTimeout(() => {
+        try {
+          const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+          const scanner = new Html5QrcodeScanner("qr-reader-viewport", config, false);
+          
+          scanner.render((decodedText) => {
+            handleProcessScannedId(decodedText);
+            scanner.clear();
+          }, (err) => {
+            // Keep scanner running silently
+          });
+
+          html5QrCodeRef.current = scanner;
+        } catch (e) {
+          console.warn("Camera init failed:", e);
+          setScanErrorMsg("Gagal mengakses kamera. Silakan gunakan input manual di bawah.");
+        }
+      }, 500);
+    };
+
+    const stopQrScanner = () => {
+      if (html5QrCodeRef.current) {
+        try {
+          html5QrCodeRef.current.clear();
+        } catch (e) {
+          console.warn(e);
+        }
+        html5QrCodeRef.current = null;
+      }
+      setIsQrScannerOpen(false);
+      setScannedResult(null);
+      setManualPtwIdInput("");
+    };
+
+    const handleProcessScannedId = (ptwId) => {
+      const cleanId = String(ptwId || "").trim().toUpperCase();
+      const foundPtw = ptwDB.find(p => p.id.toUpperCase() === cleanId || p.ptwNo.toUpperCase() === cleanId);
+      
+      if (foundPtw) {
+        setScannedResult(foundPtw);
+        setScanErrorMsg("");
+        if (html5QrCodeRef.current) {
+          try { html5QrCodeRef.current.clear(); } catch(e){}
+        }
+      } else {
+        setScanErrorMsg(`Permit ID "${cleanId}" tidak terdaftar di database.`);
+      }
+    };
+
+    const handleManualPtwSubmit = (e) => {
+      e.preventDefault();
+      if (!manualPtwIdInput.trim()) return;
+      handleProcessScannedId(manualPtwIdInput);
+    };
+
+    const executeQrAction = (actionType) => {
+      if (!scannedResult) return;
+      
+      if (actionType === "checkin") {
+        handleSatpamVerify(scannedResult.id);
+      } else if (actionType === "checkout") {
+        handleForceComplete(scannedResult.id, currentUser?.["Lokasi Tugas"]);
+      }
+      stopQrScanner();
+    };
+
     // VIEW: LOGIN PORTAL
     if (!isLoggedIn) {
       return (
@@ -1267,103 +1502,644 @@
           }}
         >
           <div className="absolute inset-0 bg-white/25 backdrop-blur-[4px] z-0"></div>
-          <div className="relative z-10 bg-white/50 p-8 rounded-2xl w-full max-w-md border border-white/80 shadow-2xl text-slate-900 backdrop-blur-lg">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-red-600/20">
-                <i className="fa-solid fa-train-subway text-2xl text-white"></i>
+          
+          {isRegisterMode ? (
+            /* LAYER REGISTRASI VENDOR */
+            <div className="relative z-10 bg-white/70 p-8 rounded-2xl w-full max-w-lg border border-white/80 shadow-2xl text-slate-900 backdrop-blur-lg">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <i className="fa-solid fa-industry text-2xl text-white"></i>
+                </div>
+                <h2 className="text-2xl font-black tracking-tight">REGISTRASI AKUN VENDOR</h2>
+                <p className="text-slate-600 text-xs mt-1">E-Permit To Work — LRT Jakarta</p>
               </div>
-              <h2 className="text-2xl font-black tracking-tight">E-PERMIT TO WORK</h2>
-              <p className="text-slate-500 text-xs mt-1">Departemen Keamanan - LRT Jakarta</p>
-              <div className="mt-2 bg-white/60 px-3 py-1 rounded-full text-[10px] font-mono inline-block border border-slate-200 text-slate-800">
-                {formatIndonesianClock(realTimeClock)}
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2 p-1 bg-white/40 border border-slate-200/50 rounded-xl mb-6">
-              <button
-                type="button"
-                onClick={() => { setRole("satpam"); setLoginError(""); }}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-2 ${
-                  role === "satpam" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <i className="fa-solid fa-shield-halved"></i>
-                <span>Danru Sektor</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setRole("karyawan"); setLoginError(""); }}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-2 ${
-                  role === "karyawan" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <i className="fa-solid fa-user-shield"></i>
-                <span>Karyawan QSHE</span>
-              </button>
-            </div>
+              <form onSubmit={handleRegisterVendor} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-extrabold text-slate-600 uppercase tracking-wider mb-1">Nama Penanggung Jawab (User)</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Contoh: Ahmad Subarjo" 
+                    className="w-full px-4 py-2 bg-white/80 border border-slate-200 rounded-xl font-semibold outline-none focus:ring-1 focus:ring-red-600"
+                    value={regNamaUser}
+                    onChange={(e) => setRegNamaUser(e.target.value)}
+                  />
+                </div>
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Email</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <i className="fa-solid fa-envelope text-xs"></i>
-                  </span>
+                <div>
+                  <label className="block font-extrabold text-slate-600 uppercase tracking-wider mb-1">Nama Perusahaan / Instansi Vendor</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Contoh: PT Sinar Jaya Abadi" 
+                    className="w-full px-4 py-2 bg-white/80 border border-slate-200 rounded-xl font-semibold outline-none focus:ring-1 focus:ring-red-600"
+                    value={regNamaPerusahaan}
+                    onChange={(e) => setRegNamaPerusahaan(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-600 uppercase tracking-wider mb-1">Email Resmi Vendor</label>
                   <input 
                     type="email" 
-                    required
-                    placeholder={role === "satpam" ? "satpam.pos1@company.com" : "hse.karyawan@company.com"} 
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm font-semibold"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required 
+                    placeholder="ahmad.vendor@company.com" 
+                    className="w-full px-4 py-2 bg-white/80 border border-slate-200 rounded-xl font-semibold outline-none focus:ring-1 focus:ring-red-600"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Password</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <i className="fa-solid fa-lock text-xs"></i>
-                  </span>
-                  <input 
-                    type="password" 
-                    required
-                    placeholder="Masukkan Sandi" 
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-extrabold text-slate-600 uppercase tracking-wider mb-1">Password</label>
+                    <input 
+                      type="password" 
+                      required 
+                      placeholder="Sandi Akun" 
+                      className="w-full px-4 py-2 bg-white/80 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-red-600"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-extrabold text-slate-600 uppercase tracking-wider mb-1">Konfirmasi Password</label>
+                    <input 
+                      type="password" 
+                      required 
+                      placeholder="Ulangi Sandi" 
+                      className="w-full px-4 py-2 bg-white/80 border border-slate-200 rounded-xl outline-none focus:ring-1 focus:ring-red-600"
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {loginError && (
-                <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-red-600 text-xs font-semibold flex items-start space-x-2 animate-pulse">
-                  <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <button 
-                type="submit" 
-                disabled={isLoggingIn}
-                className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black rounded-xl transition duration-200 text-sm tracking-wider shadow-lg shadow-red-600/30 text-white flex items-center justify-center space-x-2"
-              >
-                {isLoggingIn ? (
-                  <>
-                    <i className="fa-solid fa-circle-notch animate-spin"></i>
-                    <span>AUTHENTICATING...</span>
-                  </>
-                ) : (
-                  <span>MASUK SISTEM</span>
+                {regError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-xl font-semibold flex items-center space-x-2">
+                    <i className="fa-solid fa-circle-exclamation"></i>
+                    <span>{regError}</span>
+                  </div>
                 )}
-              </button>
-            </form>
-          </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isRegistering}
+                  className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black text-white rounded-xl transition shadow-lg text-sm tracking-wider flex items-center justify-center space-x-2"
+                >
+                  {isRegistering ? (
+                    <>
+                      <i className="fa-solid fa-circle-notch animate-spin"></i>
+                      <span>MENDAFTARKAN VENDOR...</span>
+                    </>
+                  ) : (
+                    <span>DAFTAR SEKARANG</span>
+                  )}
+                </button>
+
+                <div className="text-center pt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => { setIsRegisterMode(false); setRegError(""); }}
+                    className="text-red-700 font-extrabold hover:underline"
+                  >
+                    Sudah Punya Akun? Silakan Login
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* LAYER LOGIN UTAMA */
+            <div className="relative z-10 bg-white/50 p-8 rounded-2xl w-full max-w-md border border-white/80 shadow-2xl text-slate-900 backdrop-blur-lg">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-red-600/20">
+                  <i className="fa-solid fa-train-subway text-2xl text-white"></i>
+                </div>
+                <h2 className="text-2xl font-black tracking-tight">E-PERMIT TO WORK</h2>
+                <p className="text-slate-500 text-xs mt-1">Sistem Pengamanan Kerja — LRT Jakarta</p>
+                <div className="mt-2 bg-white/60 px-3 py-1 rounded-full text-[10px] font-mono inline-block border border-slate-200 text-slate-800">
+                  {formatIndonesianClock(realTimeClock)}
+                </div>
+              </div>
+
+              {/* Toggle Peran Login 3 Pilihan */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-white/40 border border-slate-200/50 rounded-xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => { setRole("satpam"); setLoginError(""); }}
+                  className={`py-2 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center ${
+                    role === "satpam" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <i className="fa-solid fa-shield-halved mb-0.5"></i>
+                  <span>Danru Sektor</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRole("karyawan"); setLoginError(""); }}
+                  className={`py-2 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center ${
+                    role === "karyawan" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <i className="fa-solid fa-user-shield mb-0.5"></i>
+                  <span>QSHE</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRole("vendor"); setLoginError(""); }}
+                  className={`py-2 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center ${
+                    role === "vendor" ? "bg-red-600 text-white shadow" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <i className="fa-solid fa-industry mb-0.5"></i>
+                  <span>Vendor</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <i className="fa-solid fa-envelope text-xs"></i>
+                    </span>
+                    <input 
+                      type="email" 
+                      required
+                      placeholder={
+                        role === "satpam" ? "satpam.pos1@company.com" : 
+                        role === "karyawan" ? "hse.karyawan@company.com" : "ahmad.vendor@company.com"
+                      } 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm font-semibold"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Password</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <i className="fa-solid fa-lock text-xs"></i>
+                    </span>
+                    <input 
+                      type="password" 
+                      required
+                      placeholder="Masukkan Sandi" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/60 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-600 text-slate-900 placeholder-slate-400 text-sm"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-red-600 text-xs font-semibold flex items-start space-x-2 animate-pulse">
+                    <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i>
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={isLoggingIn}
+                  className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black rounded-xl transition duration-200 text-sm tracking-wider shadow-lg shadow-red-600/30 text-white flex items-center justify-center space-x-2"
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <i className="fa-solid fa-circle-notch animate-spin"></i>
+                      <span>AUTHENTICATING...</span>
+                    </>
+                  ) : (
+                    <span>MASUK SISTEM</span>
+                  )}
+                </button>
+
+                {role === "vendor" && (
+                  <div className="text-center pt-2 text-xs">
+                    <span className="text-slate-500">Vendor baru? </span>
+                    <button 
+                      type="button" 
+                      onClick={() => { setIsRegisterMode(true); setLoginError(""); }}
+                      className="text-red-700 font-extrabold hover:underline"
+                    >
+                      Daftar Akun Vendor
+                    </button>
+                  </div>
+                )}
+              </form>
+            </div>
+          )}
         </div>
       );
     }
 
+    // =========================================================================
+    // VIEW: PORTAL UTAMA APABILA DIAKSES OLEH PERAN "VENDOR" (DENGAN E-TIKET & QR)
+    // =========================================================================
+    if (role === "vendor") {
+      return (
+        <div className="min-h-screen bg-slate-100 flex flex-col justify-between">
+          
+          {/* Header Minimalis Sederhana Vendor */}
+          <header className="px-6 py-4 bg-white border-b border-slate-200 shadow-sm flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow">
+                <i className="fa-solid fa-industry text-white"></i>
+              </div>
+              <div>
+                <h1 className="font-black tracking-tight text-sm sm:text-base leading-tight text-slate-900">E-PTW VENDOR MANDIRI PORTAL</h1>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold tracking-wide uppercase">LRT JAKARTA — MITRA PELAKSANA PEKERJAAN</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-black text-slate-900">{currentUser?.Nama || "User Vendor"}</p>
+                <p className="text-[9px] text-red-600 font-extrabold uppercase">{currentUser?.Perusahaan || "Perusahaan Mitra"}</p>
+              </div>
+              <button 
+                onClick={handleLogout} 
+                className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold rounded-xl transition text-xs flex items-center space-x-1.5"
+              >
+                <i className="fa-solid fa-power-off"></i>
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6">
+            {vendorSuccessSubmit ? (
+              /* MODIFIED: CARD BERHASIL KIRIM + TAMPILAN E-TIKET QR CODE */
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-8 text-center max-w-lg mx-auto space-y-6">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <i className="fa-solid fa-circle-check text-3xl"></i>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-800">PERMIT BERHASIL DIAJUKAN!</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Dokumen pengajuan Anda dengan ID <strong className="text-red-600 font-mono text-sm block my-1">{vendorSuccessSubmit}</strong> berhasil dikirim ke antrean sistem LRT Jakarta.
+                    </p>
+                  </div>
+
+                  {/* VISUAL QR CODE TICKET BOX */}
+                  <div id="eticket-pdf-target" className="p-5 border-2 border-slate-900 rounded-xl bg-white text-left space-y-4">
+                    <div className="flex justify-between items-start border-b pb-3 border-slate-200">
+                      <div>
+                        <h4 className="font-black text-xs text-slate-900">E-TIKET PERMIT TO WORK</h4>
+                        <p className="text-[9px] text-slate-500">PT LRT JAKARTA - DIVISI K3</p>
+                      </div>
+                      <span className="text-[9px] px-2 py-0.5 bg-yellow-100 border border-yellow-300 font-black rounded-md text-yellow-800 uppercase tracking-wider">Menunggu Verifikasi</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      {/* Generates standard API QR code from qrserver */}
+                      <div className="border p-2 bg-slate-50 rounded-lg shrink-0">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${vendorSuccessSubmit}`} 
+                          alt="PTW QR Code" 
+                          className="w-32 h-32"
+                          onError={(e) => { e.target.src = "https://placehold.co/150x150/ffffff/000000?text=QR+Code"; }}
+                        />
+                      </div>
+
+                      <div className="space-y-2 text-[11px] leading-snug w-full">
+                        <p><strong>ID REGISTRASI:</strong> <span className="font-mono text-red-600 font-extrabold">{vendorSuccessSubmit}</span></p>
+                        <p><strong>Nama Vendor:</strong> {formVendor}</p>
+                        <p><strong>Penanggung Jawab:</strong> {formPenanggungJawab}</p>
+                        <p><strong>Pekerjaan:</strong> {formPekerjaan.substring(0, 75)}{formPekerjaan.length > 75 ? "..." : ""}</p>
+                        <p><strong>Sektor/Lokasi Tugas:</strong> {formLokasi.join(", ")}</p>
+                        <p><strong>Waktu Izin:</strong> {formTglMulai} s.d {formTglSelesai} ({formJamMulai}-{formJamSelesai} WIB)</p>
+                      </div>
+                    </div>
+
+                    <div className="text-[9px] text-slate-500 bg-slate-100 p-2.5 rounded-lg border leading-relaxed">
+                      <p className="font-black text-slate-700 uppercase mb-0.5">Petunjuk Penggunaan Lapangan:</p>
+                      <ol className="list-decimal pl-4 space-y-0.5">
+                        <li>Unduh file PDF e-Tiket ini melalui tombol di bawah.</li>
+                        <li>Tunjukkan QR code di atas kepada <strong>Satpam Sektor</strong> yang berjaga di lokasi kerja.</li>
+                        <li>Satpam akan memindai QR code ini untuk memverifikasi kedatangan fisik kru dan mengaktifkan radar pekerjaan Anda.</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex flex-col gap-2">
+                    <button 
+                      onClick={() => handleDownloadETicketPdf(vendorSuccessSubmit)} 
+                      className="w-full py-3 bg-slate-900 hover:bg-black text-white font-black rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-2"
+                    >
+                      <i className="fa-solid fa-cloud-arrow-down text-sm"></i>
+                      <span>UNDUH E-TIKET PDF</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setVendorSuccessSubmit(null);
+                        initializeVendorForm(currentUser?.Nama || "User", currentUser?.Perusahaan || "Perusahaan");
+                      }} 
+                      className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs transition shadow-md"
+                    >
+                      AJUKAN PTW BARU LAINNYA
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* FORM PTW UTAMA VENDOR MANDIRI */
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                <div className="p-5 flex justify-between items-center bg-red-600 text-white">
+                  <div className="flex items-center space-x-2.5">
+                    <i className="fa-solid fa-file-contract text-xl"></i>
+                    <div>
+                      <h3 className="font-extrabold text-sm tracking-wide">FORMULIR PENGAJUAN IZIN PTW VENDOR</h3>
+                      <p className="text-[9px] text-red-100 font-semibold uppercase">Sistem Pengajuan Mandiri — LRTJ-FR-MKL-003</p>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCreatePTW} className="p-6 space-y-6 text-xs text-slate-800 bg-slate-50">
+                  
+                  {/* Bagian Input Administrasi Nomor */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 shadow-sm">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Permit To Work No.</label>
+                        <input 
+                          type="text" 
+                          required 
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-100 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formPtwNo}
+                          onChange={(e) => setFormPtwNo(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">JSA (Job Safety Analysis) No.</label>
+                        <input 
+                          type="text" 
+                          required 
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-mono text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formJsaNo}
+                          onChange={(e) => setFormJsaNo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-100 p-3 rounded-lg border border-slate-200 text-[10px] font-mono leading-relaxed text-slate-600 space-y-1">
+                      <p className="font-black text-slate-800 border-b border-slate-200 pb-1 mb-1">DATA MASTER DOKUMEN:</p>
+                      <p>Nomor Dokumen : LRTJ-FR-MKL-003</p>
+                      <p>Tanggal Efektif : 2022-09-06</p>
+                      <p>Status Validitas: Form Isian Legalitas Mitra</p>
+                    </div>
+                  </div>
+
+                  {/* KOLOM A & B */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="space-y-3">
+                      <h4 className="font-black text-red-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM A: PELAKSANA</h4>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Nama Perusahaan / Vendor (Terisi Otomatis)</label>
+                        <input 
+                          type="text" 
+                          required 
+                          disabled
+                          className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-700 outline-none font-bold"
+                          value={formVendor}
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Penanggung Jawab Pelaksana</label>
+                        <input 
+                          type="text" 
+                          required 
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formPenanggungJawab}
+                          onChange={(e) => setFormPenanggungJawab(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">SHE Pelaksana</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Masukkan nama HSE Pelaksana Anda"
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formShePelaksana}
+                          onChange={(e) => setFormShePelaksana(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Pemberi Kerja</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Contoh: Muhammad Fajar Mahendra"
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formPemberiKerja}
+                          onChange={(e) => setFormPemberiKerja(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-black text-red-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM B: DETAIL LAPANGAN</h4>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Pilih Sektor / Stasiun Tempat Kerja</label>
+                        <div className="grid grid-cols-2 gap-1 p-2.5 bg-slate-50 border border-slate-300 rounded-lg max-h-36 overflow-y-auto">
+                          {listLokasiTugas.map(st => (
+                            <label key={st.id} className="flex items-center space-x-2 cursor-pointer p-1 rounded hover:bg-slate-200">
+                              <input 
+                                type="checkbox"
+                                checked={formLokasi.includes(st.id)}
+                                onChange={() => handleStationCheckbox(st.id)}
+                                className="rounded text-red-600 focus:ring-red-600 w-4 h-4"
+                              />
+                              <span className="font-semibold text-slate-700">{st.id}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Pengawas Pemberi Kerja</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Contoh: Deni Yusfiardi"
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                          value={formPengawasPemberiKerja}
+                          onChange={(e) => setFormPengawasPemberiKerja(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-500 uppercase mb-1">Jumlah Anggota Pekerja</label>
+                        <input 
+                          type="number" 
+                          required 
+                          className="w-full p-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 outline-none font-bold focus:ring-1 focus:ring-red-600"
+                          value={formPekerjaCount}
+                          onChange={(e) => setFormPekerjaCount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-500 uppercase mb-1">Daftar Kru Pelaksana Pekerjaan (Pisahkan dengan koma)</label>
+                    <textarea 
+                      rows="2"
+                      required
+                      placeholder="Contoh: Ginanjar, Jajang, Muarip, Agles, Gangsar"
+                      className="w-full p-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 outline-none font-semibold text-xs focus:ring-1 focus:ring-red-600"
+                      value={formPersonelList}
+                      onChange={(e) => setFormPersonelList(e.target.value)}
+                    />
+                  </div>
+
+                  {/* BATASAN JADWAL */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3">
+                    <h4 className="font-black text-yellow-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM C: BATASAN JADWAL OPERASIONAL</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-1">Dari Tanggal</label>
+                          <input type="date" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formTglMulai} onChange={(e) => setFormTglMulai(e.target.value)}/>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-1">S/D Tanggal</label>
+                          <input type="date" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formTglSelesai} onChange={(e) => setFormTglSelesai(e.target.value)}/>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-1">Mulai Jam</label>
+                          <input type="time" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-mono font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formJamMulai} onChange={(e) => setFormJamMulai(e.target.value)}/>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-1">Selesai Jam</label>
+                          <input type="time" required className="w-full p-2 bg-slate-50 rounded border border-slate-300 font-mono font-bold text-slate-900 focus:ring-1 focus:ring-red-600" value={formJamSelesai} onChange={(e) => setFormJamSelesai(e.target.value)}/>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-500 uppercase mb-1">Uraian / Deskripsi Rencana Kerja di Lapangan</label>
+                    <textarea 
+                      rows="3" 
+                      required 
+                      placeholder="Masukkan detail pekerjaan konstruksi/pemeliharaan Anda secara detail"
+                      className="w-full p-2.5 rounded-lg border border-slate-300 bg-white text-slate-900 outline-none focus:ring-1 focus:ring-red-600"
+                      value={formPekerjaan}
+                      onChange={(e) => setFormPekerjaan(e.target.value)}
+                    />
+                  </div>
+
+                  {/* APD MANDATORY */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <h4 className="font-black text-blue-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM D: ALAT BANTU & APD MANDATORY</h4>
+                    
+                    <div className="flex items-center space-x-6 bg-slate-50 p-2.5 rounded border border-slate-200">
+                      <span className="font-extrabold text-slate-700">1. Potensi Api Terbuka:</span>
+                      <label className="flex items-center space-x-1 cursor-pointer">
+                        <input type="radio" name="potensiApi" value="Ada" checked={formPotensiApi === "Ada"} onChange={() => setFormPotensiApi("Ada")} className="w-4 h-4 text-red-600"/>
+                        <span className="font-bold text-red-600">Ada Api</span>
+                      </label>
+                      <label className="flex items-center space-x-1 cursor-pointer">
+                        <input type="radio" name="potensiApi" value="Tidak" checked={formPotensiApi === "Tidak"} onChange={() => setFormPotensiApi("Tidak")} className="w-4 h-4 text-slate-600"/>
+                        <span className="font-bold text-slate-600">Tidak Ada</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <span className="font-extrabold text-slate-700 block mb-2">2. Alat Pelindung Diri (APD) Pelaksana:</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        {Object.keys(formApdList).map((apd) => {
+                          if (apd === "Lain-lain") return null;
+                          return (
+                            <label key={apd} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-200 p-1 rounded">
+                              <input 
+                                type="checkbox" 
+                                checked={formApdList[apd]} 
+                                onChange={(e) => setFormApdList({ ...formApdList, [apd]: e.target.checked })}
+                                className="rounded text-blue-600 w-4 h-4"
+                              />
+                              <span className="text-[11px] font-semibold text-slate-700">{apd}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+                        <span className="font-bold text-slate-700 block">3. Penanganan Isolasi & MSDS:</span>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span>Bahan kimia berbahaya?</span>
+                          <div className="flex space-x-2">
+                            <button type="button" onClick={() => setFormIsolasiBahanKimia("Ya")} className={`px-2 py-1 rounded font-bold ${formIsolasiBahanKimia === "Ya" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Ya</button>
+                            <button type="button" onClick={() => setFormIsolasiBahanKimia("Tidak")} className={`px-2 py-1 rounded font-bold ${formIsolasiBahanKimia === "Tidak" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Tidak</button>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span>Melampirkan MSDS?</span>
+                          <div className="flex space-x-2">
+                            <button type="button" onClick={() => setFormIsolasiMsds("Ya")} className={`px-2 py-1 rounded font-bold ${formIsolasiMsds === "Ya" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Ya</button>
+                            <button type="button" onClick={() => setFormIsolasiMsds("Tidak")} className={`px-2 py-1 rounded font-bold ${formIsolasiMsds === "Tidak" ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600"}`}>Tidak</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
+                        <span className="font-bold text-slate-700 block">4. Prosedur LOTO:</span>
+                        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                          <div className="flex justify-between items-center">
+                            <span>Perlu LOTO?</span>
+                            <button type="button" onClick={() => setFormLotoProsedur(formLotoProsedur === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoProsedur === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoProsedur}</button>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Listrik?</span>
+                            <button type="button" onClick={() => setFormLotoListrik(formLotoListrik === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoListrik === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoListrik}</button>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Mekanis?</span>
+                            <button type="button" onClick={() => setFormLotoMekanis(formLotoMekanis === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoMekanis === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoMekanis}</button>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Hidrolik?</span>
+                            <button type="button" onClick={() => setFormLotoHidrolik(formLotoHidrolik === "Ya" ? "Tidak" : "Ya")} className={`px-2 py-0.5 rounded font-black ${formLotoHidrolik === "Ya" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>{formLotoHidrolik}</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Button Submit Form */}
+                  <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                    <button 
+                      type="submit"
+                      className="w-full sm:w-auto px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition shadow-lg flex items-center justify-center space-x-2 text-sm tracking-wider"
+                    >
+                      <i className="fa-solid fa-paper-plane"></i>
+                      <span>KIRIM SEKARANG</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </main>
+
+          <footer className="py-4 text-center text-[10px] text-slate-400 border-t bg-white">
+            &copy; 2026 PT LRT Jakarta — Hak Cipta Dilindungi Undang-Undang.
+          </footer>
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // VIEW: PORTAL UTAMA UNTUK INTERNAL (KARYAWAN & SATPAM)
+    // =========================================================================
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 font-serif">
         
@@ -1485,7 +2261,7 @@
 
             <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
               <div className="hidden sm:block text-right">
-                <p className="text-xs font-black capitalize text-slate-900">{currentUser?.Nama}</p>
+                <p className="text-xs font-black capitalize text-slate-900">{currentUser?.Nama || currentUser?.["Nama User"]}</p>
                 <p className="text-[9px] text-slate-500 uppercase font-semibold">Tugas: {currentUser?.["Lokasi Tugas"] || "HQ"}</p>
               </div>
               <button onClick={handleLogout} className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition">
@@ -1512,14 +2288,24 @@
               </div>
             </div>
             
+            {/* MODIFIED: SATPAM ACTION AREA - ADD SCAN QR BUTTON AND NEW REGISTER */}
             {role === "satpam" && (
-              <button 
-                onClick={openCreateModal}
-                className="w-full md:w-auto px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition text-xs tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-red-600/20"
-              >
-                <i className="fa-solid fa-file-invoice-dollar text-sm animate-pulse"></i>
-                <span>AJUKAN PTW BARU</span>
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <button 
+                  onClick={startQrScanner}
+                  className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-black text-white font-black rounded-xl transition text-xs tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-black/15"
+                >
+                  <i className="fa-solid fa-qrcode text-sm animate-pulse"></i>
+                  <span>PINDAI QR TIKET PTW</span>
+                </button>
+                <button 
+                  onClick={openCreateModal}
+                  className="w-full sm:w-auto px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition text-xs tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-red-600/20"
+                >
+                  <i className="fa-solid fa-file-invoice text-sm"></i>
+                  <span>AJUKAN PTW BARU</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1572,10 +2358,11 @@
 
                 {/* DASHBOARD GRAFIK */}
                 <div className="lg:col-span-5 grid grid-cols-1 gap-6">
+                  {/* MODIFIED: Grafik Kegiatan Vendor Setiap Harinya (7 Hari Terakhir) */}
                   <div className="p-4 rounded-2xl border h-[210px] flex flex-col justify-between bg-white border-slate-200 shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                      <h5 className="font-black text-xs tracking-wider text-slate-500 uppercase">Jumlah Pekerja di Sektor (7 Hari Terakhir)</h5>
-                      <i className="fa-solid fa-users-gear text-slate-400"></i>
+                      <h5 className="font-black text-xs tracking-wider text-slate-500 uppercase">Kegiatan Vendor Setiap Harinya (7 Hari Terakhir)</h5>
+                      <i className="fa-solid fa-business-time text-red-500"></i>
                     </div>
                     <div className="flex-1 relative mt-2">
                       <canvas ref={chartPekerjaRef}></canvas>
@@ -1731,7 +2518,7 @@
 
         </main>
 
-        {/* MODAL: FORMULIR PENGAJUAN IZIN PTW */}
+        {/* MODAL: FORMULIR PENGAJUAN IZIN PTW (SATPAM/INTERNAL) */}
         {isCreateModalOpen && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
             <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
@@ -1880,7 +2667,7 @@
                   />
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3">
                   <h4 className="font-black text-yellow-600 border-b border-slate-200 pb-1.5 uppercase">KOLOM C: BATASAN JADWAL OPERASIONAL</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="grid grid-cols-2 gap-2">
@@ -2156,6 +2943,118 @@
             </div>
           </div>
         )}
+
+        {/* MODIFIED: NEW MODAL QR SCANNER FOR SATPAM */}
+        {isQrScannerOpen && (
+          <div className="fixed inset-0 z-[1100] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col">
+              
+              <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+                <div className="flex items-center space-x-2.5">
+                  <i className="fa-solid fa-qrcode text-xl text-red-500 animate-pulse"></i>
+                  <div>
+                    <h3 className="font-extrabold text-xs tracking-wider uppercase">Pindai QR Tiket Kerja Vendor</h3>
+                    <p className="text-[10px] text-slate-400">Verifikasi Mulai/Selesai Kerja melalui kamera</p>
+                  </div>
+                </div>
+                <button onClick={stopQrScanner} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                
+                {/* CAMERA VIEWPORT CONTAINER */}
+                {!scannedResult && (
+                  <div className="space-y-4">
+                    <div id="qr-reader-viewport" className="w-full rounded-xl overflow-hidden border border-slate-300 bg-slate-50 shadow-inner"></div>
+                    
+                    {scanErrorMsg && (
+                      <p className="text-red-600 text-xs text-center font-bold bg-red-50 p-2.5 rounded-lg border border-red-200 animate-shake">
+                        {scanErrorMsg}
+                      </p>
+                    )}
+
+                    {/* MANUAL FALLBACK INPUT FIELD */}
+                    <form onSubmit={handleManualPtwSubmit} className="pt-2 border-t border-dashed border-slate-200">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wide mb-1">Pencarian PTW ID Manual:</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Masukkan ID PTW (Contoh: PTW-832912)"
+                          value={manualPtwIdInput}
+                          onChange={(e) => setManualPtwIdInput(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold uppercase tracking-wider outline-none focus:ring-1 focus:ring-red-600"
+                        />
+                        <button type="submit" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs">
+                          Cari
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* SCANNED PERMIT PREVIEW AND WORKFLOW CONTEXT ACTIONS */}
+                {scannedResult && (
+                  <div className="space-y-4 animate-fade-in text-xs">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                      <div className="flex justify-between items-center border-b pb-2">
+                        <span className="font-mono font-black text-red-600">{scannedResult.id}</span>
+                        <span className="px-2.5 py-0.5 bg-yellow-500 text-white font-bold rounded text-[9px] uppercase tracking-wide">
+                          {scannedResult.status}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1.5 text-[11px] leading-snug">
+                        <p><strong>Nama Perusahaan:</strong> {scannedResult.vendor}</p>
+                        <p><strong>Penanggung Jawab:</strong> {scannedResult.penanggungJawab}</p>
+                        <p><strong>Jumlah Crew:</strong> {scannedResult.jumlahPekerja} Personel</p>
+                        <p><strong>Jenis Pekerjaan:</strong> <span className="italic">{scannedResult.jenisPekerjaan}</span></p>
+                        <p><strong>Daftar Kru:</strong> {scannedResult.personelList || "-"}</p>
+                        <p><strong>Sektor Target:</strong> <span className="font-bold text-red-600">{scannedResult.lokasi.join(", ")}</span></p>
+                        <p><strong>Waktu Izin:</strong> {scannedResult.tanggalMulai} s/d {scannedResult.tanggalSelesai}</p>
+                      </div>
+                    </div>
+
+                    {/* DYNAMIC ACTION WORKFLOWS FOR SATPAM CHECK-IN/OUT */}
+                    <div className="space-y-2 pt-3 border-t">
+                      <p className="text-slate-500 font-extrabold text-[10px] tracking-wide uppercase">Operasi Lapangan Danru Satpam ({currentUser?.["Lokasi Tugas"]}):</p>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Check-In Action Button */}
+                        <button 
+                          onClick={() => executeQrAction("checkin")}
+                          className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition flex flex-col items-center justify-center space-y-1"
+                        >
+                          <i className="fa-solid fa-play-circle text-lg"></i>
+                          <span>VERIFIKASI & MULAI</span>
+                        </button>
+
+                        {/* Check-Out Action Button */}
+                        <button 
+                          onClick={() => executeQrAction("checkout")}
+                          className="py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs transition flex flex-col items-center justify-center space-y-1"
+                        >
+                          <i className="fa-solid fa-stop-circle text-lg"></i>
+                          <span>AKHIRI PEKERJAAN</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setScannedResult(null)} 
+                      className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs"
+                    >
+                      Batal & Scan Ulang
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }
