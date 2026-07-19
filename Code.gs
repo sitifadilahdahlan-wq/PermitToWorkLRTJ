@@ -143,7 +143,6 @@ function doLogin(email, password, role) {
     throw new Error("Kredensial salah atau pengguna tidak terdaftar.");  
   }  
 
-  // Normalisasi data khusus vendor untuk disesuaikan dengan kebutuhan frontend
   if (role === "Vendor") {
     user.Nama = user["Nama User"] || "Pelaksana Vendor";
     user.Perusahaan = user["Nama Perusahaan"] || "Perusahaan Konstruksi";
@@ -177,13 +176,11 @@ function doRegisterVendor(namaUser, namaPerusahaan, email, password) {
   const data = getSheetValues(sheet);
   const cleanEmail = String(email || "").toLowerCase().trim();
 
-  // Cek apakah email sudah pernah terdaftar
   const exists = data.some(u => String(u.Email || "").toLowerCase().trim() === cleanEmail);
   if (exists) {
     throw new Error("Email ini telah terdaftar sebagai akun Vendor.");
   }
 
-  // Tambahkan baris data vendor baru
   sheet.appendRow([
     cleanEmail,
     String(password).trim(),
